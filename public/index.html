@@ -48,8 +48,9 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 .heart{width:26px;height:26px;fill:var(--pink);filter:drop-shadow(0 2px 2px rgba(0,0,0,.4));transition:transform .25s,fill .25s}
 .heart.off{fill:#453740;transform:scale(.82)}
 #lvlname{flex:1;text-align:center;font-weight:600;font-size:13px;letter-spacing:.06em;color:var(--dim);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#btnBack{width:34px;height:34px;border-radius:50%;background:var(--panel);font-size:17px;line-height:1;box-shadow:inset 0 -3px 0 rgba(0,0,0,.35)}
-#btnBack:active{transform:translateY(2px)}
+#btnBack,#btnHelp{width:34px;height:34px;border-radius:50%;background:var(--panel);font-size:17px;line-height:1;box-shadow:inset 0 -3px 0 rgba(0,0,0,.35)}
+#btnBack:active,#btnHelp:active{transform:translateY(2px)}
+#btnHelp{font-weight:700;color:var(--gold)}
 #timerwrap{height:14px;border-radius:99px;background:#33262d;overflow:hidden;box-shadow:inset 0 2px 3px rgba(0,0,0,.5)}
 #timerbar{height:100%;width:100%;border-radius:99px;background:var(--green);transition:width .2s linear}
 #timerwrap.low #timerbar{animation:tpulse .5s ease-in-out infinite}
@@ -208,6 +209,15 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 .chip.on{background:linear-gradient(180deg,#9df2a6,var(--green) 60%,#37a052);color:#0b3317;box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
 .chip:active{transform:scale(.94)}
 
+/* how-to-play guide */
+#guideIcon{font-size:56px;line-height:1}
+#guideTitle{margin-top:8px}
+.guiderows{display:flex;flex-direction:column;gap:14px;margin:18px auto 4px;max-width:340px}
+.guiderow{display:flex;align-items:center;gap:14px;text-align:left}
+.guiderow .gtxt{font-size:16px;font-weight:500;color:var(--cream);flex:1}
+.guiderow .gemoji{font-size:34px;width:48px;text-align:center;flex:none}
+.tile.mini{position:static;width:48px;height:48px;flex:none;--ts:48px}
+
 #endEmoji{font-size:64px;line-height:1}
 #endTitle{font-size:36px;font-weight:700;margin-top:10px}
 #endStars{font-size:34px;letter-spacing:.12em;margin-top:6px;min-height:42px}
@@ -226,6 +236,7 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
     <div id="hudrow">
       <div id="hearts"></div>
       <div id="lvlname"></div>
+      <button id="btnHelp" aria-label="How to play">?</button>
       <button id="btnBack" aria-label="Back">‹</button>
     </div>
     <div id="timerwrap"><div id="timerbar"></div></div>
@@ -278,6 +289,14 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
     <button class="bigbtn ghost" id="btnFreeHome" style="margin-top:18px">‹ Home</button>
   </div>
 
+  <div class="screen hidden" id="scrGuide">
+    <div id="guideIcon"></div>
+    <h2 id="guideTitle"></h2>
+    <div class="guiderows" id="guideRows"></div>
+    <button class="bigbtn" id="btnGo">LET'S GO!</button>
+    <p class="mini">TAP ? DURING THE GAME TO SEE THIS AGAIN</p>
+  </div>
+
   <div class="screen hidden" id="scrEnd">
     <div id="endEmoji">🎉</div>
     <h2 id="endTitle"></h2>
@@ -312,6 +331,7 @@ if (save.sound === undefined) save.sound = true;
 if (save.voice === undefined) save.voice = true;
 if (save.freeDiff === undefined) save.freeDiff = "easy";
 if (save.freeTimer === undefined) save.freeTimer = true;
+if (!save.guides) save.guides = {};
 function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (_) {} }
 // migrate v1 saves (30 levels) to v2 (Blue Pools world inserted at 13-18)
 if ((save.v || 1) < 2) {
@@ -1005,6 +1025,10 @@ function startFree(style, stage) {
   launch();
 }
 function launch() {
+  if (!save.guides[G.cfg.mode]) { showGuide(G.cfg.mode, "start"); return; }
+  beginLevel();
+}
+function beginLevel() {
   G.screen = "game";
   overlay.classList.add("hidden");
   $("timerwrap").style.visibility = G.cfg.timer > 999 ? "hidden" : "visible";
@@ -1013,13 +1037,77 @@ function launch() {
   G.ctrl.start();
   timerUI();
 }
+
+// ---------------- how-to-play guides ----------------
+const GUIDES = {
+  slide: { title: "Slide", rows: [
+    ["tile start mini", "Hold your finger on the green tile to start"],
+    ["tile rumble mini", "Slide away when a tile shakes — it's about to erupt!"],
+    ["🤸", "Lift your finger to jump — but land within 1 second!"],
+  ]},
+  steps: { title: "Steps", rows: [
+    ["tile mini", "Tap the tile next to you to step on it"],
+    ["🏃", "Hold and drag to RUN across the floor!"],
+    ["tile lava mini", "Don't touch the lava — reach the star!"],
+  ]},
+  stomp: { title: "Blue Tiles", rows: [
+    ["tile blue mini", "Step on every blue tile to clear it"],
+    ["tile pink mini", "Pink tiles need TWO stomps!"],
+    ["tile start mini", "The green pad is always safe"],
+  ]},
+  path: { title: "Memory Path", rows: [
+    ["tile plit mini", "Watch the glowing path light up"],
+    ["🙈", "The lights turn off — remember the way!"],
+    ["tile lava mini", "Step only on path tiles, or… splash!"],
+  ]},
+  waves: { title: "Lava Waves", rows: [
+    ["tile lava mini", "Lava waves sweep across the floor"],
+    ["👀", "Watch first — the waves repeat a pattern!"],
+    ["tile goal mini", "Run through the gaps and reach the star"],
+  ]},
+};
+function showGuide(mode, ctx) {
+  G.guideCtx = ctx;                        // "start" = before a level, "resume" = from the ? button
+  const g = GUIDES[mode];
+  $("guideIcon").textContent = MODES[mode].icon;
+  $("guideTitle").textContent = "How to play: " + g.title;
+  const holder = $("guideRows");
+  holder.innerHTML = "";
+  g.rows.forEach(([vis, text]) => {
+    const row = document.createElement("div");
+    row.className = "guiderow";
+    const visual = vis.startsWith("tile")
+      ? `<div class="${vis}">${vis.includes("pink") || vis.includes("start") || vis.includes("goal") ? '<span class="icon"></span>' : ""}</div>`
+      : `<div class="gemoji">${vis}</div>`;
+    row.innerHTML = `${visual}<div class="gtxt">${text}</div>`;
+    holder.appendChild(row);
+  });
+  showScreen("scrGuide");
+  say(g.title + "! " + g.rows.map(r => r[1].replace(/[—…!]/g, ".")).join(" "), 1.0);
+}
+$("btnGo").addEventListener("click", () => {
+  ensureAudio();
+  try { speechSynthesis.cancel(); } catch (_) {}
+  if (G.guideCtx === "start") { save.guides[G.cfg.mode] = true; persist(); beginLevel(); }
+  else { G.screen = "game"; overlay.classList.add("hidden"); board.classList.remove("paused"); }
+});
+$("btnHelp").addEventListener("click", () => {
+  if (G.screen !== "game" || !G.ctrl || G.phase === "watch") return;
+  if (G.ctrl === CTRL.slide && G.phase === "playing") {          // park the slider safely first
+    G.phase = "respawn"; G.ptrId = null; G.air = G.off = false; G.pTile = -1; hideRing();
+    board.classList.add("paused");
+    S.tiles[S.start].el.classList.add("await");
+  }
+  G.trail = []; G.dragPtr = null;
+  showGuide(G.cfg.mode, "resume");
+});
 function retryCurrent() { G.hearts = HEARTS; if (G.free) startFree(G.free.style, 1); else startLevel(G.lvlIdx); }
 
 // ---------------- screens ----------------
 function showScreen(id) {
   G.screen = id;
   overlay.classList.remove("hidden");
-  ["scrTitle", "scrMap", "scrFree", "scrEnd"].forEach(s => $(s).classList.toggle("hidden", s !== id));
+  ["scrTitle", "scrMap", "scrFree", "scrEnd", "scrGuide"].forEach(s => $(s).classList.toggle("hidden", s !== id));
   if (id === "scrMap") renderMap();
   if (id === "scrFree") renderFree();
   if (id === "scrTitle" || id === "scrFree") syncChips();
