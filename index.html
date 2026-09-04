@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Floor is Lava">
+<meta name="theme-color" content="#160f13">
+<title>Floor is Lava</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap">
+</head>
+<body>
+<style>
+:root{
+  --bg0:#160f13; --bg1:#2a161c;
+  --stone:#5a5361; --stone-hi:#6f6678; --stone-lo:#3f3947;
+  --lava1:#ffb347; --lava2:#ff5a1f; --lava3:#d81e2b;
+  --green:#59d666; --green-lo:#2f9e4f; --gold:#ffc93c;
+  --cream:#fff3e4; --pink:#ff4d6d; --dim:#b9a8a0;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+body{
+  background:
+    radial-gradient(120% 90% at 50% 115%, rgba(216,30,43,.28), transparent 55%),
+    radial-gradient(90% 70% at 50% -20%, #33202a, transparent 60%),
+    var(--bg0);
+  color:var(--cream);
+  font-family:"Fredoka","Baloo 2",ui-rounded,"SF Pro Rounded","Segoe UI",system-ui,sans-serif;
+  touch-action:none;
+  -webkit-user-select:none;user-select:none;
+  height:100dvh;
+}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top) + 8px) calc(env(safe-area-inset-right) + 10px)
+          calc(env(safe-area-inset-bottom) + 8px) calc(env(safe-area-inset-left) + 10px);}
+
+/* ---------- HUD ---------- */
+#hud{flex:0 0 auto;display:flex;flex-direction:column;gap:6px;padding:2px 4px 8px}
+#hudrow{display:flex;align-items:center;gap:10px}
+#hearts{display:flex;gap:3px}
+.heart{width:26px;height:26px;fill:var(--pink);filter:drop-shadow(0 2px 2px rgba(0,0,0,.4));transition:transform .25s,fill .25s}
+.heart.off{fill:#453740;transform:scale(.82)}
+#lvlname{flex:1;text-align:center;font-weight:600;font-size:13px;letter-spacing:.06em;color:var(--dim);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#btnReset{width:34px;height:34px;border-radius:50%;border:none;background:#3a2e36;color:var(--cream);
+  font-size:17px;line-height:1;font-family:inherit;box-shadow:inset 0 -3px 0 rgba(0,0,0,.35)}
+#btnReset:active{transform:translateY(2px)}
+#timerwrap{height:14px;border-radius:99px;background:#33262d;overflow:hidden;box-shadow:inset 0 2px 3px rgba(0,0,0,.5)}
+#timerbar{height:100%;width:100%;border-radius:99px;background:var(--green);transition:width .2s linear}
+#timerwrap.low #timerbar{animation:tpulse .5s ease-in-out infinite}
+@keyframes tpulse{50%{filter:brightness(1.5)}}
+
+/* ---------- Board ---------- */
+#boardwrap{flex:1;position:relative;display:flex;align-items:center;justify-content:center;min-height:0}
+#board{position:relative}
+.tile{position:absolute;border-radius:18%;
+  background:linear-gradient(150deg,var(--stone-hi),var(--stone) 55%,var(--stone-lo));
+  box-shadow:inset 0 3px 0 rgba(255,255,255,.09), inset 0 -5px 0 rgba(0,0,0,.28), 0 4px 8px rgba(0,0,0,.45);
+  display:flex;align-items:center;justify-content:center;}
+.tile::after{content:"";position:absolute;inset:0;border-radius:inherit;opacity:0;pointer-events:none}
+
+.tile.lava{background:radial-gradient(circle at 38% 30%,var(--lava1),var(--lava2) 48%,var(--lava3) 90%);
+  box-shadow:0 0 20px rgba(255,90,31,.5), inset 0 0 14px rgba(255,225,160,.55), inset 0 -4px 8px rgba(140,10,20,.7);
+  animation:bubble 1.7s ease-in-out infinite}
+@keyframes bubble{50%{filter:brightness(1.2) saturate(1.15)}}
+
+.tile.rumble{animation:shake .14s linear infinite}
+.tile.rumble::after{background:radial-gradient(circle,rgba(255,110,31,.9),rgba(255,90,31,.12));
+  opacity:0;animation:heatup var(--warn,2.5s) linear forwards}
+@keyframes heatup{to{opacity:1}}
+@keyframes shake{0%{transform:translate(0,0) rotate(0)}25%{transform:translate(1.5px,-1px) rotate(.6deg)}
+  50%{transform:translate(-1.5px,1px) rotate(-.6deg)}75%{transform:translate(1px,1.5px) rotate(.4deg)}100%{transform:translate(-1px,-1.5px) rotate(-.4deg)}}
+
+.tile.erupt{background:radial-gradient(circle at 50% 40%,#fff0c0,var(--lava1) 30%,var(--lava2) 60%,var(--lava3) 95%);
+  box-shadow:0 0 34px rgba(255,120,40,.85), inset 0 0 18px rgba(255,240,190,.8);
+  animation:pop .3s ease-out}
+@keyframes pop{0%{transform:scale(.92)}55%{transform:scale(1.12)}100%{transform:scale(1)}}
+
+.tile.cool{background:linear-gradient(150deg,#4a3038,#3a262d 60%,#2c1c22);
+  box-shadow:inset 0 0 10px rgba(255,90,31,.25), inset 0 -4px 0 rgba(0,0,0,.3)}
+
+.tile.start{background:radial-gradient(circle at 38% 30%,#9df2a6,var(--green) 55%,var(--green-lo) 95%);
+  box-shadow:0 0 14px rgba(89,214,102,.35), inset 0 3px 0 rgba(255,255,255,.25), inset 0 -5px 0 rgba(0,0,0,.25)}
+.tile.start .icon::before{content:"👣"}
+.tile.goal{background:radial-gradient(circle at 38% 30%,#ffe9a8,var(--gold) 55%,#d99a12 95%);
+  box-shadow:0 0 16px rgba(255,201,60,.4), inset 0 3px 0 rgba(255,255,255,.3), inset 0 -5px 0 rgba(0,0,0,.25)}
+.tile.goal .icon::before{content:"⭐"}
+.icon{font-size:calc(var(--ts,60px) * .5);pointer-events:none;filter:drop-shadow(0 2px 2px rgba(0,0,0,.35))}
+.tile.await{animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.07);box-shadow:0 0 26px rgba(89,214,102,.8), inset 0 3px 0 rgba(255,255,255,.25)}}
+#board.paused .tile,#board.paused .tile::after{animation-play-state:paused}
+
+/* ---------- Player ring ---------- */
+#ring{position:fixed;width:74px;height:74px;border-radius:50%;pointer-events:none;display:none;
+  z-index:5;margin:-37px 0 0 -37px}
+#ring.on{display:block;border:5px solid rgba(158,255,170,.95);box-shadow:0 0 16px rgba(89,214,102,.7), inset 0 0 12px rgba(89,214,102,.5)}
+#ring.hang{display:block;border:none}
+
+/* ---------- FX / flash / toast ---------- */
+#fx{position:fixed;inset:0;pointer-events:none;z-index:6}
+#flash{position:fixed;inset:0;background:radial-gradient(circle,rgba(255,60,30,.55),rgba(216,30,43,.75));
+  opacity:0;pointer-events:none;z-index:7;transition:opacity .5s}
+#flash.go{opacity:1;transition:none}
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 26px);transform:translateX(-50%) translateY(20px);
+  background:#3a2e36;color:var(--cream);padding:11px 20px;border-radius:99px;font-weight:600;font-size:16px;
+  white-space:nowrap;opacity:0;transition:.25s;z-index:8;box-shadow:0 6px 16px rgba(0,0,0,.5)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---------- Overlay screens ---------- */
+#overlay{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;
+  background:rgba(16,10,13,.82);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+#overlay.hidden{display:none}
+.card{text-align:center;padding:24px 28px;max-width:420px;width:90%}
+.card.hidden{display:none}
+.logo{font-weight:700;font-size:clamp(44px,11vw,74px);line-height:.95;letter-spacing:.01em;
+  background:linear-gradient(175deg,var(--gold) 12%,var(--lava2) 55%,var(--lava3) 95%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 4px 0 rgba(90,10,15,.85)) drop-shadow(0 8px 22px rgba(255,90,31,.35));
+  transform:rotate(-2deg)}
+.logo em{font-style:normal;display:block;font-size:.42em;letter-spacing:.42em;color:var(--cream);
+  -webkit-text-fill-color:var(--cream);filter:none;transform:rotate(1deg);margin:6px 0 2px}
+.tag{margin-top:14px;font-size:19px;font-weight:600;color:var(--cream)}
+.rules{list-style:none;margin:20px auto 6px;display:flex;flex-direction:column;gap:9px;font-size:16px;color:var(--dim);font-weight:500}
+.rules li b{color:var(--cream)}
+.bigbtn{margin-top:24px;font-family:inherit;font-weight:700;font-size:24px;letter-spacing:.08em;color:#3b2404;
+  background:linear-gradient(180deg,#ffe9a8,var(--gold) 55%,#eda813);border:none;border-radius:22px;
+  padding:16px 54px;box-shadow:0 6px 0 #9c6c08, 0 12px 24px rgba(0,0,0,.5);cursor:pointer}
+.bigbtn:active{transform:translateY(5px);box-shadow:0 1px 0 #9c6c08}
+.mini{margin-top:18px;font-size:13px;color:#8d7a76;letter-spacing:.04em}
+#endEmoji{font-size:66px;line-height:1}
+#endTitle{font-size:38px;font-weight:700;margin-top:10px}
+#endStars{font-size:36px;letter-spacing:.12em;margin-top:6px;min-height:44px}
+#endMsg{margin-top:6px;font-size:17px;color:var(--dim);font-weight:500}
+
+@media (prefers-reduced-motion:reduce){
+  .tile.rumble{animation:none;outline:4px solid var(--lava2)}
+  .tile.lava,.tile.await{animation:none}
+}
+</style>
+
+<div id="app">
+  <div id="hud">
+    <div id="hudrow">
+      <div id="hearts"></div>
+      <div id="lvlname">Level 1 · The Meadow</div>
+      <button id="btnReset" aria-label="Restart">↺</button>
+    </div>
+    <div id="timerwrap"><div id="timerbar"></div></div>
+  </div>
+  <div id="boardwrap"><div id="board"></div></div>
+</div>
+
+<div id="ring"></div>
+<canvas id="fx"></canvas>
+<div id="flash"></div>
+<div id="toast"></div>
+
+<div id="overlay">
+  <div class="card" id="cardTitle">
+    <h1 class="logo">FLOOR<em>· IS ·</em>LAVA</h1>
+    <p class="tag">Don't touch the lava! 🌋</p>
+    <ul class="rules">
+      <li>👇 <b>Hold your finger</b> on the stones</li>
+      <li>⚠️ <b>Slide away</b> when a tile rumbles</li>
+      <li>⭐ <b>Reach the star</b> before time runs out</li>
+    </ul>
+    <button class="bigbtn" id="btnPlay">PLAY</button>
+    <p class="mini">PROTOTYPE · ONE LEVEL · ONE PLAYER</p>
+  </div>
+  <div class="card hidden" id="cardEnd">
+    <div id="endEmoji">🌋</div>
+    <h2 id="endTitle"></h2>
+    <div id="endStars"></div>
+    <p id="endMsg"></p>
+    <button class="bigbtn" id="btnAgain">PLAY AGAIN</button>
+  </div>
+</div>
+
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="hh" viewBox="0 0 24 24">
+    <path d="M12 21.2C6.2 16.9 2.8 13.2 2.8 9.4 2.8 6.7 4.9 4.6 7.6 4.6c1.8 0 3.4 1 4.4 2.5 1-1.5 2.6-2.5 4.4-2.5 2.7 0 4.8 2.1 4.8 4.8 0 3.8-3.4 7.5-9.2 11.8z"/>
+  </symbol>
+</svg>
+
+<script>
+(() => {
+"use strict";
+// ---------- config ----------
+const HEARTS = 5, DUR = 60, HANG = 1.0, ERUPT_T = 1.5, COOL_T = 0.7, LAVA_FRAC = 0.14;
+const $ = id => document.getElementById(id);
+const board = $("board"), wrap = $("boardwrap"), ring = $("ring"), toastEl = $("toast");
+const overlay = $("overlay"), cardTitle = $("cardTitle"), cardEnd = $("cardEnd");
+
+// ---------- state ----------
+const S = {
+  mode: "title",          // title | ready | playing | respawn | won | lost
+  hearts: HEARTS, t: 0,   // t = game clock (seconds), pauses outside "playing"
+  cols: 0, rows: 0, tile: 60, gap: 8,
+  tiles: [], start: 0, goal: 0, player: -1,
+  ptrId: null, air: false, airStart: 0, off: false, offStart: 0,
+  lastXY: [0, 0], nextErupt: 0, rect: null, toastTimer: 0
+};
+
+// ---------- grid helpers ----------
+const isTablet = () => Math.min(innerWidth, innerHeight) >= 600;
+function gridDims() {
+  const land = innerWidth > innerHeight;
+  if (isTablet()) return land ? [8, 6] : [6, 8];
+  return land ? [6, 4] : [4, 6];
+}
+const idx = (c, r) => r * S.cols + c;
+function neighbors(i) {
+  const c = i % S.cols, r = (i / S.cols) | 0, out = [];
+  if (c > 0) out.push(i - 1);
+  if (c < S.cols - 1) out.push(i + 1);
+  if (r > 0) out.push(i - S.cols);
+  if (r < S.rows - 1) out.push(i + S.cols);
+  return out;
+}
+
+// ---------- level build ----------
+function buildLevel() {
+  [S.cols, S.rows] = gridDims();
+  const n = S.cols * S.rows;
+  S.start = idx((S.cols / 2) | 0, S.rows - 1);
+  S.goal = idx((S.cols / 2) | 0, 0);
+  let lavaSet;
+  for (let tries = 0; tries < 60; tries++) {
+    lavaSet = new Set();
+    const want = Math.round(n * LAVA_FRAC);
+    while (lavaSet.size < want) {
+      const i = (Math.random() * n) | 0;
+      if (i !== S.start && i !== S.goal) lavaSet.add(i);
+    }
+    // BFS path check
+    const seen = new Set([S.start]), q = [S.start];
+    while (q.length) {
+      const i = q.shift();
+      if (i === S.goal) break;
+      for (const j of neighbors(i))
+        if (!seen.has(j) && !lavaSet.has(j)) { seen.add(j); q.push(j); }
+    }
+    if (seen.has(S.goal)) break;
+  }
+  board.innerHTML = "";
+  S.tiles = [];
+  for (let i = 0; i < n; i++) {
+    const el = document.createElement("div");
+    el.className = "tile";
+    const isLava = lavaSet.has(i);
+    const st = isLava ? "lava" : "safe";
+    if (isLava) el.classList.add("lava");
+    if (i === S.start) { el.classList.add("start"); el.innerHTML = '<span class="icon"></span>'; }
+    if (i === S.goal) { el.classList.add("goal"); el.innerHTML = '<span class="icon"></span>'; }
+    board.appendChild(el);
+    S.tiles.push({ el, state: st, until: 0, fixed: isLava });
+  }
+  layout();
+}
+
+function layout() {
+  if (!S.tiles.length) return;
+  S.gap = isTablet() ? 10 : 7;
+  const aw = wrap.clientWidth - 8, ah = wrap.clientHeight - 8;
+  S.tile = Math.floor(Math.min(
+    (aw - (S.cols - 1) * S.gap) / S.cols,
+    (ah - (S.rows - 1) * S.gap) / S.rows));
+  const bw = S.cols * S.tile + (S.cols - 1) * S.gap;
+  const bh = S.rows * S.tile + (S.rows - 1) * S.gap;
+  board.style.width = bw + "px";
+  board.style.height = bh + "px";
+  board.style.setProperty("--ts", S.tile + "px");
+  S.tiles.forEach((t, i) => {
+    const c = i % S.cols, r = (i / S.cols) | 0;
+    t.el.style.width = t.el.style.height = S.tile + "px";
+    t.el.style.left = c * (S.tile + S.gap) + "px";
+    t.el.style.top = r * (S.tile + S.gap) + "px";
+    t.el.style.setProperty("--ts", S.tile + "px");
+  });
+  S.rect = board.getBoundingClientRect();
+}
+addEventListener("resize", () => { layout(); sizeFx(); });
+
+// ---------- tile state machine ----------
+function setState(i, st, dur, warn) {
+  const t = S.tiles[i];
+  t.state = st;
+  t.until = dur ? S.t + dur : 0;
+  t.el.classList.remove("rumble", "erupt", "cool");
+  if (st === "rumble") {
+    t.el.style.setProperty("--warn", warn + "s");
+    t.el.classList.add("rumble");
+  } else if (st === "erupt") t.el.classList.add("erupt");
+  else if (st === "cool") t.el.classList.add("cool");
+}
+
+function updateTiles() {
+  S.tiles.forEach((t, i) => {
+    if (!t.until || S.t < t.until) return;
+    if (t.state === "rumble") {
+      setState(i, "erupt", ERUPT_T);
+      sndErupt();
+      if (S.player === i && !S.air && !S.off && S.mode === "playing") burn("🔥 Ouch! The tile erupted!");
+    } else if (t.state === "erupt") setState(i, "cool", COOL_T);
+    else if (t.state === "cool") setState(i, "safe", 0);
+  });
+}
+
+function scheduler() {
+  if (S.t < S.nextErupt) return;
+  const interval = Math.max(1.5, 2.6 - S.t * 0.018);
+  const warn = Math.max(1.7, 2.6 - S.t * 0.012);
+  S.nextErupt = S.t + interval;
+  const targets = [];
+  // maybe target the player's tile (only if an escape route exists)
+  const p = S.player;
+  if (p >= 0 && p !== S.start && p !== S.goal && S.tiles[p].state === "safe" && Math.random() < 0.55) {
+    if (neighbors(p).some(j => S.tiles[j].state === "safe" || j === S.goal)) targets.push(p);
+  }
+  const extras = isTablet() ? 2 : 1;
+  const pool = [];
+  S.tiles.forEach((t, i) => {
+    if (t.state === "safe" && i !== S.start && i !== S.goal && i !== p) pool.push(i);
+  });
+  for (let k = 0; k < extras && pool.length; k++)
+    targets.push(pool.splice((Math.random() * pool.length) | 0, 1)[0]);
+  if (targets.length) sndRumble();
+  targets.forEach(i => setState(i, "rumble", warn, warn));
+}
+
+// ---------- pointer → tile ----------
+function tileAt(x, y) {
+  const r = S.rect;
+  if (!r) return null;
+  const M = 26;
+  if (x < r.left - M || x > r.right + M || y < r.top - M || y > r.bottom + M) return null;
+  const cx = Math.min(Math.max(x - r.left, 0), r.width - 1);
+  const cy = Math.min(Math.max(y - r.top, 0), r.height - 1);
+  const c = Math.min(S.cols - 1, (cx / (S.tile + S.gap)) | 0);
+  const rr = Math.min(S.rows - 1, (cy / (S.tile + S.gap)) | 0);
+  return idx(c, rr);
+}
+const stateOf = i => S.tiles[i].state;
+const standable = i => i === S.goal || ["safe", "rumble", "cool"].includes(stateOf(i));
+
+// ---------- ring ----------
+function ringAt(x, y, cls) {
+  ring.className = cls;
+  ring.style.background = "";
+  ring.style.transform = `translate(${x}px,${y}px)`;
+}
+function ringHang(frac) {
+  ring.className = "hang";
+  const deg = Math.round(360 * (1 - frac));
+  ring.style.background = `conic-gradient(rgba(255,201,60,.95) ${deg}deg, rgba(255,201,60,.15) ${deg}deg)`;
+  ring.style.borderRadius = "50%";
+}
+function hideRing() { ring.className = ""; ring.style.background = ""; }
+
+// ---------- game flow ----------
+function newGame() {
+  S.hearts = HEARTS; S.t = 0; S.nextErupt = 2.2;
+  S.air = S.off = false; S.ptrId = null; S.player = -1;
+  S.mode = "ready";
+  buildLevel();
+  updateHearts(); timerUI();
+  board.classList.remove("paused");
+  overlay.classList.add("hidden");
+  S.tiles[S.start].el.classList.add("await");
+  toast("Hold your finger on the green tile 👇", 3.5);
+}
+function beginPlay(i) {
+  S.tiles[S.start].el.classList.remove("await");
+  board.classList.remove("paused");
+  const first = S.mode === "ready";
+  S.mode = "playing";
+  S.player = i;
+  if (first) toast("Slide away when tiles rumble! ⚠️", 2.2);
+}
+function burn(msg) {
+  S.hearts--; updateHearts(); sndBurn();
+  const f = $("flash");
+  f.classList.add("go"); requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove("go")));
+  S.air = S.off = false; S.ptrId = null; S.player = -1; hideRing();
+  if (S.hearts <= 0) { lose("🌋", "The lava won this time!", "You were so brave — try again!"); return; }
+  S.mode = "respawn";
+  board.classList.add("paused");
+  S.tiles[S.start].el.classList.add("await");
+  toast(msg + " Back to the green tile!", 3);
+}
+function win() {
+  S.mode = "won"; S.ptrId = null; hideRing(); sndWin(); confetti();
+  const stars = S.hearts >= HEARTS ? 3 : S.hearts >= 3 ? 2 : 1;
+  const secs = Math.round(S.t);
+  showEnd("🎉", "Level Clear!", "⭐".repeat(stars),
+    `You crossed the lava in ${secs} seconds with ${S.hearts} ${S.hearts === 1 ? "heart" : "hearts"} left!`);
+}
+function lose(emoji, title, msg) {
+  S.mode = "lost"; S.ptrId = null; hideRing(); sndLose();
+  showEnd(emoji, title, "", msg);
+}
+function showEnd(emoji, title, stars, msg) {
+  $("endEmoji").textContent = emoji;
+  $("endTitle").textContent = title;
+  $("endStars").textContent = stars;
+  $("endStars").style.display = stars ? "" : "none";
+  $("endMsg").textContent = msg;
+  cardTitle.classList.add("hidden");
+  cardEnd.classList.remove("hidden");
+  overlay.classList.remove("hidden");
+}
+function toTitle() {
+  S.mode = "title"; S.ptrId = null; hideRing();
+  cardEnd.classList.add("hidden");
+  cardTitle.classList.remove("hidden");
+  overlay.classList.remove("hidden");
+}
+
+// ---------- HUD ----------
+function updateHearts() {
+  const h = $("hearts");
+  if (!h.childElementCount)
+    for (let i = 0; i < HEARTS; i++)
+      h.insertAdjacentHTML("beforeend", '<svg class="heart" viewBox="0 0 24 24"><use href="#hh"/></svg>');
+  [...h.children].forEach((el, i) => el.classList.toggle("off", i >= S.hearts));
+}
+function timerUI() {
+  const frac = Math.max(0, 1 - S.t / DUR);
+  const bar = $("timerbar");
+  bar.style.width = frac * 100 + "%";
+  bar.style.background = `hsl(${Math.round(frac * 112)},78%,52%)`;
+  $("timerwrap").classList.toggle("low", frac < 0.18 && frac > 0);
+}
+let toastT = null;
+function toast(msg, secs) {
+  toastEl.textContent = msg;
+  toastEl.classList.add("show");
+  clearTimeout(toastT);
+  toastT = setTimeout(() => toastEl.classList.remove("show"), secs * 1000);
+}
+
+// ---------- pointer handlers ----------
+function onDown(e) {
+  ensureAudio();
+  if (S.mode === "title" || S.mode === "won" || S.mode === "lost") return;
+  if (S.ptrId !== null && e.pointerId !== S.ptrId) { toast("One finger for one player! ☝️", 1.6); return; }
+  const i = tileAt(e.clientX, e.clientY);
+  S.lastXY = [e.clientX, e.clientY];
+  if (S.mode === "ready" || S.mode === "respawn") {
+    if (i === S.start) { S.ptrId = e.pointerId; beginPlay(i); ringAt(e.clientX, e.clientY, "on"); sndLand(); }
+    else toast("Start on the green tile! 👇", 1.6);
+    return;
+  }
+  if (S.mode === "playing" && S.air) {
+    S.ptrId = e.pointerId;
+    if (i === null) return;                       // hovering off the floor — timer keeps running
+    if (i === S.goal) { land(i); return; }
+    if (standable(i)) land(i);
+    else burn("🔥 You landed in lava!");
+  }
+}
+function land(i) {
+  S.air = false; S.off = false;
+  ringAt(...S.lastXY, "on"); sndLand();
+  if (i === S.goal) { win(); return; }
+  S.player = i;
+}
+function onMove(e) {
+  if (e.pointerId !== S.ptrId || S.mode !== "playing" || S.air) return;
+  S.lastXY = [e.clientX, e.clientY];
+  ringAt(e.clientX, e.clientY, "on");
+  const i = tileAt(e.clientX, e.clientY);
+  if (i === null) {                                // slid off the board edge
+    if (!S.off) { S.off = true; S.offStart = S.t; }
+    return;
+  }
+  if (S.off) {                                     // came back over the board
+    if (standable(i)) { S.off = false; S.player = i; sndLand(); if (i === S.goal) win(); }
+    else burn("🔥 That was lava!");
+    return;
+  }
+  if (i !== S.player) {
+    if (i === S.goal) { S.player = i; win(); return; }
+    if (standable(i)) { S.player = i; sndStep(); }
+    else burn("🔥 That was lava!");
+  }
+}
+function onUp(e) {
+  if (e.pointerId !== S.ptrId) return;
+  S.ptrId = null;
+  if (S.mode === "playing") { S.air = true; S.off = false; S.airStart = S.t; }
+  else hideRing();
+}
+wrap.addEventListener("pointerdown", onDown);
+addEventListener("pointermove", onMove);
+addEventListener("pointerup", onUp);
+addEventListener("pointercancel", onUp);
+document.addEventListener("touchmove", e => e.preventDefault(), { passive: false });
+document.addEventListener("gesturestart", e => e.preventDefault());
+document.addEventListener("dblclick", e => e.preventDefault());
+
+$("btnPlay").addEventListener("click", () => { ensureAudio(); newGame(); });
+$("btnAgain").addEventListener("click", () => { ensureAudio(); newGame(); });
+$("btnReset").addEventListener("click", toTitle);
+
+// ---------- main loop ----------
+let last = performance.now();
+function frame(ts) {
+  const dt = Math.min(0.05, (ts - last) / 1000); last = ts;
+  if (S.mode === "playing") {
+    S.t += dt;
+    updateTiles();
+    if (S.mode === "playing") {        // updateTiles may have burned/ended the run
+      scheduler(); timerUI();
+      if (S.t >= DUR) lose("⏰", "Time's up!", "The floor got too hot — try again!");
+      else if (S.air) {
+        const f = (S.t - S.airStart) / HANG;
+        if (f >= 1) burn("💨 You fell in!");
+        else { ringHang(f); ring.style.transform = `translate(${S.lastXY[0]}px,${S.lastXY[1]}px)`; }
+      } else if (S.off && S.t - S.offStart > HANG) burn("💨 You slid off the floor!");
+      else if (S.player >= 0 && !standable(S.player)) burn("🔥 Ouch, lava!");
+    }
+  }
+  drawFX(dt);
+  requestAnimationFrame(frame);
+}
+
+// ---------- particles (embers + confetti) ----------
+const fx = $("fx"), ctx = fx.getContext("2d");
+let embers = [], confs = [];
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function sizeFx() {
+  const d = Math.min(devicePixelRatio || 1, 2);
+  fx.width = innerWidth * d; fx.height = innerHeight * d;
+  fx.style.width = innerWidth + "px"; fx.style.height = innerHeight + "px";
+  ctx.setTransform(d, 0, 0, d, 0, 0);
+}
+sizeFx();
+function newEmber() {
+  return { x: Math.random() * innerWidth, y: innerHeight + 10, s: 1 + Math.random() * 2.4,
+    vy: 14 + Math.random() * 26, dr: (Math.random() - .5) * 14, a: .25 + Math.random() * .45 };
+}
+if (!reduceMotion) for (let i = 0; i < 22; i++) { const e = newEmber(); e.y = Math.random() * innerHeight; embers.push(e); }
+function confetti() {
+  const colors = ["#ffc93c", "#59d666", "#ff4d6d", "#fff3e4", "#ff5a1f", "#6ec6ff"];
+  for (let i = 0; i < 150; i++)
+    confs.push({ x: innerWidth / 2 + (Math.random() - .5) * 120, y: innerHeight * .35,
+      vx: (Math.random() - .5) * 520, vy: -260 - Math.random() * 380,
+      s: 5 + Math.random() * 6, rot: Math.random() * 6.3, vr: (Math.random() - .5) * 10,
+      c: colors[(Math.random() * colors.length) | 0], life: 2.6 });
+}
+function drawFX(dt) {
+  ctx.clearRect(0, 0, innerWidth, innerHeight);
+  for (const e of embers) {
+    e.y -= e.vy * dt; e.x += e.dr * dt;
+    if (e.y < -12) Object.assign(e, newEmber());
+    ctx.globalAlpha = e.a;
+    ctx.fillStyle = "#ff8a3c";
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.s, 0, 6.3); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  confs = confs.filter(p => (p.life -= dt) > 0);
+  for (const p of confs) {
+    p.vy += 640 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+    ctx.globalAlpha = Math.min(1, p.life);
+    ctx.fillStyle = p.c; ctx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s * .62);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ---------- audio ----------
+let AC = null;
+function ensureAudio() {
+  try {
+    if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === "suspended") AC.resume();
+  } catch (_) {}
+}
+function beep(f0, dur, type, vol, f1) {
+  if (!AC) return;
+  try {
+    const o = AC.createOscillator(), g = AC.createGain(), t = AC.currentTime;
+    o.type = type; o.frequency.setValueAtTime(f0, t);
+    if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(AC.destination);
+    o.start(t); o.stop(t + dur + .02);
+  } catch (_) {}
+}
+function noiseBurst(dur, vol) {
+  if (!AC) return;
+  try {
+    const n = AC.sampleRate * dur | 0, buf = AC.createBuffer(1, n, AC.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    const src = AC.createBufferSource(), g = AC.createGain();
+    src.buffer = buf; g.gain.value = vol;
+    src.connect(g); g.connect(AC.destination); src.start();
+  } catch (_) {}
+}
+const sndStep = () => beep(540 + Math.random() * 80, .05, "triangle", .07);
+const sndLand = () => beep(170, .09, "sine", .18, 110);
+const sndRumble = () => beep(72, .4, "sawtooth", .1, 52);
+const sndErupt = () => { noiseBurst(.22, .22); beep(230, .3, "sawtooth", .16, 60); };
+const sndBurn = () => { beep(330, .45, "sawtooth", .22, 70); noiseBurst(.3, .18); };
+function sndWin() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, .28, "triangle", .2), i * 110)); }
+function sndLose() { [330, 262, 196].forEach((f, i) => setTimeout(() => beep(f, .32, "triangle", .16), i * 160)); }
+
+// ---------- boot ----------
+updateHearts();
+buildLevel();               // so the board shows behind the title screen
+requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+})();
+</script>
+</body>
+</html>
