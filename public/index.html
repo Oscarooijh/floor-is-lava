@@ -833,10 +833,28 @@ CTRL.path = {
   cleanup() { this.path && this.path.forEach(i => S.tiles[i] && S.tiles[i].el.classList.remove("plit")); },
 };
 
+function genCycle(n) {
+  // random repeating gap pattern: consecutive gaps close enough to reach, far enough to matter
+  const cyc = [Math.random()];
+  for (let k = 1; k < n; k++) {
+    let f = Math.random();
+    for (let tries = 0; tries < 40; tries++) {
+      const prev = cyc[k - 1], wrap = k === n - 1 ? cyc[0] : null;
+      const okPrev = Math.abs(f - prev) <= .5 && Math.abs(f - prev) >= .15;
+      const okWrap = wrap === null || Math.abs(f - wrap) <= .5;
+      if (okPrev && okWrap) break;
+      f = Math.random();
+    }
+    cyc.push(f);
+  }
+  return cyc;
+}
+
 CTRL.waves = {
   start() {
     buildBoard({ animal: G.animal });
     showPawn(S.start);
+    this.cycle = genCycle(G.cfg.cycle.length);
     this.waves = []; this.beatAcc = 0; this.beatCount = 0; this.cycleIdx = 0; this.counting = false;
     G.phase = "watch";
     toast("Read the waves! 🌊 Hop through the gaps", 2.6);
@@ -853,7 +871,7 @@ CTRL.waves = {
     for (const w of this.waves) w.row++;
     this.waves = this.waves.filter(w => w.row <= S.rows - 2);
     if (this.beatCount % G.cfg.every === 0) {
-      const frac = G.cfg.cycle[this.cycleIdx % G.cfg.cycle.length];
+      const frac = this.cycle[this.cycleIdx % this.cycle.length];
       this.cycleIdx++;
       this.waves.push({ row: 1, gaps: this.gapCols(frac) });
     }
