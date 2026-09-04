@@ -499,6 +499,7 @@ const G = {
   hearts: HEARTS, burns: 0, t: 0, pTile: -1, usePawn: false,
   ptrId: null, air: false, airStart: 0, off: false, offStart: 0, lastXY: [0, 0],
   nextErupt: 0, invulnUntil: 0,
+  trail: [], dragPtr: null, lastDragTile: null, stepAcc: 0,
 };
 
 // ---------------- pawn ----------------
@@ -543,6 +544,7 @@ function burn(msg) {
   G.hearts--; G.burns++; updateHearts(); sndBurn();
   const f = $("flash");
   f.classList.add("go"); requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove("go")));
+  G.trail = []; G.dragPtr = null;
   if (G.hearts <= 0) { say("Oh no! Try again!"); endLose("🌋", "The lava won this time!", "You were so brave — try again!"); return; }
   say("Ouch!", 1.2);
   toast(msg, 2.2);
@@ -637,13 +639,40 @@ function ringHang(frac) {
   ring.style.borderRadius = "50%";
 }
 function hideRing() { ring.className = ""; ring.style.background = ""; }
-function tapStep(i, isSafe, isDeadly, deadlyMsg) {
-  if (i === null || i === G.pTile || G.phase !== "playing") return;
-  if (!adjacent(G.pTile, i)) { if (G.t > G.invulnUntil) toast("One step at a time! 👣", 1.2); return; }
-  if (isDeadly(i)) { burn(deadlyMsg); return; }
-  if (!isSafe(i)) return;
+function stepInto(i, rules) {          // i must be adjacent to the pawn
+  if (rules.deadly(i)) { burn(rules.msg); return false; }
+  if (!rules.safe(i)) return false;
   G.pTile = i; pawnTo(i); sndHop();
-  if (i === S.goal) winLevel();
+  if (i === S.goal) { winLevel(); return true; }
+  if (G.ctrl.onStep) G.ctrl.onStep(i);
+  return true;
+}
+function tapStep(i, rules) {
+  if (i === null || i === G.pTile || G.phase !== "playing") return;
+  if (!adjacent(G.pTile, i)) { if (G.t > G.invulnUntil) toast("Step next door — or drag to run! 👣", 1.2); return; }
+  stepInto(i, rules);
+}
+// --- drag-to-run: the pawn chases the trail the finger draws, at a capped speed ---
+const RUN_STEP = 0.13, TRAIL_MAX = 14;
+function appendTrail(a, b) {
+  // manhattan-interpolate from a to b (cols first), excluding a, including b
+  let c = a % S.cols, r = (a / S.cols) | 0;
+  const bc = b % S.cols, br = (b / S.cols) | 0;
+  const out = [];
+  while (c !== bc) { c += c < bc ? 1 : -1; out.push(idx(c, r)); }
+  while (r !== br) { r += r < br ? 1 : -1; out.push(idx(c, r)); }
+  for (const t of out) if (G.trail.length < TRAIL_MAX) G.trail.push(t);
+}
+function runnerTick(dt) {
+  if (!G.trail.length) { G.stepAcc = 0; return; }
+  G.stepAcc += dt;
+  while (G.stepAcc >= RUN_STEP && G.trail.length) {
+    G.stepAcc -= RUN_STEP;
+    let next = G.trail.shift();
+    while (next !== undefined && (next === G.pTile || !adjacent(G.pTile, next))) next = G.trail.shift();
+    if (next === undefined) break;
+    if (!stepInto(next, G.ctrl.rules()) || G.phase !== "playing") { G.trail.length = 0; break; }
+  }
 }
 
 // ---------------- controllers ----------------
@@ -723,9 +752,8 @@ CTRL.steps = {
     G.phase = "watch"; G.nextErupt = 1.5;
     countdown(() => { G.phase = "playing"; G.invulnUntil = G.t + .5; });
   },
-  down(e, i) {
-    tapStep(i, j => standable(j), j => ["lava", "erupt"].includes(stateOf(j)), "🔥 You stepped in lava!");
-  },
+  rules() { return { deadly: j => ["lava", "erupt"].includes(stateOf(j)), safe: j => standable(j), msg: "🔥 You stepped in lava!" }; },
+  down(e, i) { tapStep(i, this.rules()); },
   move() {}, up() {},
   tick() {
     if (G.phase !== "playing") return;
@@ -790,9 +818,8 @@ CTRL.path = {
       done && done();
     }, total));
   },
-  down(e, i) {
-    tapStep(i, j => this.set.has(j), j => !this.set.has(j), "🔥 Splash! Not that one!");
-  },
+  rules() { const s = this.set; return { deadly: j => !s.has(j), safe: j => s.has(j), msg: "🔥 Splash! Not that one!" }; },
+  down(e, i) { tapStep(i, this.rules()); },
   move() {}, up() {},
   tick() {},
   onBurn() {
@@ -851,9 +878,8 @@ CTRL.waves = {
       t.state = lava ? "lava" : "safe";
     });
   },
-  down(e, i) {
-    tapStep(i, j => !this.isLava(j), j => this.isLava(j), "🔥 You hopped into the wave!");
-  },
+  rules() { return { deadly: j => this.isLava(j), safe: j => !this.isLava(j), msg: "🔥 You hopped into the wave!" }; },
+  down(e, i) { tapStep(i, this.rules()); },
   move() {}, up() {},
   tick(dt) {
     this.beatAcc += dt;
@@ -910,12 +936,12 @@ CTRL.stomp = {
     beep(760 + Math.random() * 120, .12, "triangle", .18, 1200);
     if (this.left <= 0) winLevel();
   },
+  rules() { return { deadly: j => ["lava", "erupt"].includes(stateOf(j)), safe: j => standable(j), msg: "🔥 You stepped in lava!" }; },
+  onStep(i) { if (this.targets.has(i)) this.stomp(i); },
   down(e, i) {
     if (G.phase !== "playing") return;
     if (i === G.pTile && this.targets.has(i)) { this.stomp(i); return; }  // double-stomp in place
-    const before = G.pTile;
-    tapStep(i, j => standable(j), j => ["lava", "erupt"].includes(stateOf(j)), "🔥 You stepped in lava!");
-    if (G.pTile !== before && this.targets.has(G.pTile)) this.stomp(G.pTile);
+    tapStep(i, this.rules());
   },
   move() {}, up() {},
   tick() {
@@ -936,6 +962,7 @@ function resetRun() {
   G.ctrl && G.ctrl.cleanup && G.ctrl.cleanup();
   G.t = 0; G.burns = 0; G.pTile = -1; G.ptrId = null;
   G.air = G.off = false; G.nextErupt = 0; G.invulnUntil = 0; G.lastSaid = 0;
+  G.trail = []; G.dragPtr = null; G.lastDragTile = null; G.stepAcc = 0;
   board.classList.remove("paused"); hideRing(); hidePawn();
   countEl.classList.remove("show");
 }
@@ -1049,14 +1076,25 @@ function onDown(e) {
   if (G.screen !== "game" || !G.ctrl) return;
   G.lastXY = [e.clientX, e.clientY];
   if (G.ctrl === CTRL.slide && G.ptrId !== null && e.pointerId !== G.ptrId) { toast("One finger for one player! ☝️", 1.5); return; }
-  G.ctrl.down(e, tileAt(e.clientX, e.clientY));
+  const i = tileAt(e.clientX, e.clientY);
+  G.ctrl.down(e, i);
+  if (G.ctrl.rules && G.phase === "playing" && i !== null) { G.dragPtr = e.pointerId; G.lastDragTile = i; }
 }
 function onMove(e) {
   if (G.screen !== "game" || !G.ctrl) return;
   if (G.ctrl === CTRL.slide && e.pointerId === G.ptrId) G.lastXY = [e.clientX, e.clientY];
-  G.ctrl.move(e, tileAt(e.clientX, e.clientY));
+  const i = tileAt(e.clientX, e.clientY);
+  if (G.ctrl.rules && e.pointerId === G.dragPtr && G.phase === "playing" &&
+      i !== null && G.lastDragTile !== null && i !== G.lastDragTile) {
+    appendTrail(G.lastDragTile, i);
+    G.lastDragTile = i;
+  }
+  G.ctrl.move(e, i);
 }
-function onUp(e) { if (G.screen === "game" && G.ctrl) G.ctrl.up(e); }
+function onUp(e) {
+  if (G.screen === "game" && G.ctrl) G.ctrl.up(e);
+  if (e.pointerId === G.dragPtr) { G.dragPtr = null; G.lastDragTile = null; }
+}
 wrap.addEventListener("pointerdown", onDown);
 addEventListener("pointermove", onMove);
 addEventListener("pointerup", onUp);
@@ -1073,6 +1111,7 @@ function frame(ts) {
     if (G.phase === "playing") {
       G.t += dt;
       G.ctrl.tick(dt);
+      if (G.phase === "playing" && G.ctrl.rules) runnerTick(dt);
       if (G.phase === "playing") {
         timerUI();
         if (G.cfg.timer < 999) {
