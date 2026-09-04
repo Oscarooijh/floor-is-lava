@@ -18,7 +18,7 @@
   --stone:#5a5361; --stone-hi:#6f6678; --stone-lo:#3f3947;
   --lava1:#ffb347; --lava2:#ff5a1f; --lava3:#d81e2b;
   --green:#59d666; --green-lo:#2f9e4f; --gold:#ffc93c;
-  --cream:#fff3e4; --pink:#ff4d6d; --dim:#b9a8a0;
+  --cream:#fff3e4; --pink:#ff4d6d; --dim:#b9a8a0; --panel:#3a2e36;
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden;overscroll-behavior:none}
@@ -33,6 +33,7 @@ body{
   -webkit-user-select:none;user-select:none;
   height:100dvh;
 }
+button{font-family:inherit;color:inherit;border:none;background:none;cursor:pointer}
 #app{position:fixed;inset:0;display:flex;flex-direction:column;
   padding:calc(env(safe-area-inset-top) + 8px) calc(env(safe-area-inset-right) + 10px)
           calc(env(safe-area-inset-bottom) + 8px) calc(env(safe-area-inset-left) + 10px);}
@@ -44,9 +45,8 @@ body{
 .heart{width:26px;height:26px;fill:var(--pink);filter:drop-shadow(0 2px 2px rgba(0,0,0,.4));transition:transform .25s,fill .25s}
 .heart.off{fill:#453740;transform:scale(.82)}
 #lvlname{flex:1;text-align:center;font-weight:600;font-size:13px;letter-spacing:.06em;color:var(--dim);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#btnReset{width:34px;height:34px;border-radius:50%;border:none;background:#3a2e36;color:var(--cream);
-  font-size:17px;line-height:1;font-family:inherit;box-shadow:inset 0 -3px 0 rgba(0,0,0,.35)}
-#btnReset:active{transform:translateY(2px)}
+#btnBack{width:34px;height:34px;border-radius:50%;background:var(--panel);font-size:17px;line-height:1;box-shadow:inset 0 -3px 0 rgba(0,0,0,.35)}
+#btnBack:active{transform:translateY(2px)}
 #timerwrap{height:14px;border-radius:99px;background:#33262d;overflow:hidden;box-shadow:inset 0 2px 3px rgba(0,0,0,.5)}
 #timerbar{height:100%;width:100%;border-radius:99px;background:var(--green);transition:width .2s linear}
 #timerwrap.low #timerbar{animation:tpulse .5s ease-in-out infinite}
@@ -81,62 +81,120 @@ body{
 .tile.cool{background:linear-gradient(150deg,#4a3038,#3a262d 60%,#2c1c22);
   box-shadow:inset 0 0 10px rgba(255,90,31,.25), inset 0 -4px 0 rgba(0,0,0,.3)}
 
+.tile.wwarn::after{background:radial-gradient(circle,rgba(255,150,60,.55),rgba(255,110,31,.1));opacity:1;transition:opacity .15s}
+.tile.plit{background:radial-gradient(circle at 38% 30%,#a8f5b0,var(--green) 60%,var(--green-lo) 95%);
+  box-shadow:0 0 16px rgba(89,214,102,.55), inset 0 3px 0 rgba(255,255,255,.25), inset 0 -5px 0 rgba(0,0,0,.22)}
+
 .tile.start{background:radial-gradient(circle at 38% 30%,#9df2a6,var(--green) 55%,var(--green-lo) 95%);
   box-shadow:0 0 14px rgba(89,214,102,.35), inset 0 3px 0 rgba(255,255,255,.25), inset 0 -5px 0 rgba(0,0,0,.25)}
 .tile.start .icon::before{content:"👣"}
 .tile.goal{background:radial-gradient(circle at 38% 30%,#ffe9a8,var(--gold) 55%,#d99a12 95%);
   box-shadow:0 0 16px rgba(255,201,60,.4), inset 0 3px 0 rgba(255,255,255,.3), inset 0 -5px 0 rgba(0,0,0,.25)}
-.tile.goal .icon::before{content:"⭐"}
+.tile.goal .icon::before{content:var(--goalicon,"⭐")}
 .icon{font-size:calc(var(--ts,60px) * .5);pointer-events:none;filter:drop-shadow(0 2px 2px rgba(0,0,0,.35))}
 .tile.await{animation:pulse 1s ease-in-out infinite}
 @keyframes pulse{50%{transform:scale(1.07);box-shadow:0 0 26px rgba(89,214,102,.8), inset 0 3px 0 rgba(255,255,255,.25)}}
 #board.paused .tile,#board.paused .tile::after{animation-play-state:paused}
 
-/* ---------- Player ring ---------- */
+/* ---------- Pawn (tap modes) ---------- */
+#pawn{position:absolute;z-index:4;pointer-events:none;display:none;
+  border-radius:50%;background:radial-gradient(circle at 35% 28%,#b4f7bc,#5fd66c 55%,#2f9e4f 95%);
+  box-shadow:0 5px 10px rgba(0,0,0,.5), inset 0 3px 0 rgba(255,255,255,.35);
+  transition:left .16s ease-out, top .16s ease-out;}
+#pawn.show{display:block}
+#pawn.hop{animation:hop .18s ease-out}
+@keyframes hop{40%{transform:scale(1.18) translateY(-14%)}100%{transform:scale(1)}}
+#pawn.hurt{animation:hurt .5s ease-out}
+@keyframes hurt{0%,100%{filter:none}30%{filter:brightness(1.6) saturate(2) hue-rotate(-60deg);transform:scale(.8)}}
+#pawn .eye{position:absolute;top:26%;width:22%;height:26%;background:#fff;border-radius:50%}
+#pawn .eye::after{content:"";position:absolute;left:28%;top:32%;width:46%;height:46%;background:#26333a;border-radius:50%}
+#pawn .eye.l{left:18%}
+#pawn .eye.r{right:18%}
+
+/* ---------- Ring / FX / toast / count ---------- */
 #ring{position:fixed;width:74px;height:74px;border-radius:50%;pointer-events:none;display:none;
   z-index:5;margin:-37px 0 0 -37px}
 #ring.on{display:block;border:5px solid rgba(158,255,170,.95);box-shadow:0 0 16px rgba(89,214,102,.7), inset 0 0 12px rgba(89,214,102,.5)}
 #ring.hang{display:block;border:none}
-
-/* ---------- FX / flash / toast ---------- */
 #fx{position:fixed;inset:0;pointer-events:none;z-index:6}
 #flash{position:fixed;inset:0;background:radial-gradient(circle,rgba(255,60,30,.55),rgba(216,30,43,.75));
   opacity:0;pointer-events:none;z-index:7;transition:opacity .5s}
 #flash.go{opacity:1;transition:none}
 #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 26px);transform:translateX(-50%) translateY(20px);
-  background:#3a2e36;color:var(--cream);padding:11px 20px;border-radius:99px;font-weight:600;font-size:16px;
+  background:var(--panel);color:var(--cream);padding:11px 20px;border-radius:99px;font-weight:600;font-size:16px;
   white-space:nowrap;opacity:0;transition:.25s;z-index:8;box-shadow:0 6px 16px rgba(0,0,0,.5)}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#count{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);font-size:110px;font-weight:700;z-index:8;
+  color:var(--gold);text-shadow:0 6px 0 rgba(90,10,15,.8),0 10px 30px rgba(255,90,31,.5);display:none;pointer-events:none}
+#count.show{display:block;animation:cpop .82s ease-out}
+@keyframes cpop{0%{transform:translate(-50%,-50%) scale(.4);opacity:0}25%{transform:translate(-50%,-50%) scale(1.15);opacity:1}80%{opacity:1}100%{transform:translate(-50%,-50%) scale(1);opacity:0}}
 
 /* ---------- Overlay screens ---------- */
 #overlay{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;
-  background:rgba(16,10,13,.82);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+  background:rgba(16,10,13,.86);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 #overlay.hidden{display:none}
-.card{text-align:center;padding:24px 28px;max-width:420px;width:90%}
-.card.hidden{display:none}
-.logo{font-weight:700;font-size:clamp(44px,11vw,74px);line-height:.95;letter-spacing:.01em;
+.screen{text-align:center;padding:24px 22px calc(env(safe-area-inset-bottom) + 24px);max-width:460px;width:96%;
+  max-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.screen.hidden{display:none}
+.logo{font-weight:700;font-size:clamp(40px,10vw,68px);line-height:.95;letter-spacing:.01em;
   background:linear-gradient(175deg,var(--gold) 12%,var(--lava2) 55%,var(--lava3) 95%);
   -webkit-background-clip:text;background-clip:text;color:transparent;
   filter:drop-shadow(0 4px 0 rgba(90,10,15,.85)) drop-shadow(0 8px 22px rgba(255,90,31,.35));
   transform:rotate(-2deg)}
 .logo em{font-style:normal;display:block;font-size:.42em;letter-spacing:.42em;color:var(--cream);
   -webkit-text-fill-color:var(--cream);filter:none;transform:rotate(1deg);margin:6px 0 2px}
-.tag{margin-top:14px;font-size:19px;font-weight:600;color:var(--cream)}
-.rules{list-style:none;margin:20px auto 6px;display:flex;flex-direction:column;gap:9px;font-size:16px;color:var(--dim);font-weight:500}
-.rules li b{color:var(--cream)}
-.bigbtn{margin-top:24px;font-family:inherit;font-weight:700;font-size:24px;letter-spacing:.08em;color:#3b2404;
-  background:linear-gradient(180deg,#ffe9a8,var(--gold) 55%,#eda813);border:none;border-radius:22px;
-  padding:16px 54px;box-shadow:0 6px 0 #9c6c08, 0 12px 24px rgba(0,0,0,.5);cursor:pointer}
+.tag{margin-top:12px;font-size:18px;font-weight:600}
+.bigbtn{margin-top:18px;font-weight:700;font-size:22px;letter-spacing:.08em;color:#3b2404;
+  background:linear-gradient(180deg,#ffe9a8,var(--gold) 55%,#eda813);border-radius:22px;
+  padding:15px 46px;box-shadow:0 6px 0 #9c6c08, 0 12px 24px rgba(0,0,0,.5);display:block;margin-left:auto;margin-right:auto;min-width:240px}
 .bigbtn:active{transform:translateY(5px);box-shadow:0 1px 0 #9c6c08}
-.mini{margin-top:18px;font-size:13px;color:#8d7a76;letter-spacing:.04em}
-#endEmoji{font-size:66px;line-height:1}
-#endTitle{font-size:38px;font-weight:700;margin-top:10px}
-#endStars{font-size:36px;letter-spacing:.12em;margin-top:6px;min-height:44px}
-#endMsg{margin-top:6px;font-size:17px;color:var(--dim);font-weight:500}
+.bigbtn.alt{background:linear-gradient(180deg,#9df2a6,var(--green) 55%,#37a052);box-shadow:0 6px 0 #1c6e35,0 12px 24px rgba(0,0,0,.5);color:#0b3317}
+.bigbtn.alt:active{box-shadow:0 1px 0 #1c6e35}
+.bigbtn.ghost{background:var(--panel);color:var(--cream);box-shadow:0 6px 0 #241c21,0 12px 24px rgba(0,0,0,.4);font-size:18px;padding:12px 34px;min-width:0}
+.bigbtn.ghost:active{box-shadow:0 1px 0 #241c21}
+.mini{margin-top:16px;font-size:13px;color:#8d7a76;letter-spacing:.04em}
+.screen h2{font-size:30px;font-weight:700;margin-bottom:4px}
+.screen .sub{color:var(--dim);font-size:15px;font-weight:500;margin-bottom:14px}
+
+/* world sections on the map */
+.worldsec{background:rgba(58,46,54,.55);border-radius:22px;padding:14px 14px 16px;margin-top:14px;text-align:left}
+.worldsec.locked{opacity:.45;filter:saturate(.4)}
+.whead{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.wicon{font-size:26px}
+.wname{font-weight:700;font-size:18px;flex:1}
+.wmode{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.lvls{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.lvldot{position:relative;aspect-ratio:1;border-radius:30%;background:linear-gradient(150deg,var(--stone-hi),var(--stone-lo));
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.12), inset 0 -4px 0 rgba(0,0,0,.3);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;font-size:17px;color:var(--cream)}
+.lvldot:active{transform:scale(.94)}
+.lvldot.done{background:linear-gradient(150deg,#7ee08a,var(--green-lo))}
+.lvldot.cur{background:linear-gradient(150deg,#ffe9a8,#eda813);color:#3b2404;animation:pulse 1.2s ease-in-out infinite}
+.lvldot.lock{pointer-events:none;color:#7a6a72}
+.lvldot .st{font-size:9px;letter-spacing:1px;line-height:1;margin-top:2px;color:var(--gold)}
+.lvldot.cur .st{color:#7a5205}
+.lvldot .animal{position:absolute;top:-9px;right:-6px;font-size:16px;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
+
+/* free play cards */
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px}
+.modecard{background:rgba(58,46,54,.6);border-radius:22px;padding:18px 10px 14px;text-align:center;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.08), inset 0 -5px 0 rgba(0,0,0,.3)}
+.modecard:active{transform:scale(.96)}
+.modecard .mi{font-size:38px;line-height:1}
+.modecard .mn{font-weight:700;font-size:17px;margin-top:8px}
+.modecard .md{font-size:12px;color:var(--dim);font-weight:500;margin-top:3px;min-height:2.4em}
+.modecard .mb{font-size:12px;color:var(--gold);font-weight:600;margin-top:6px}
+
+#endEmoji{font-size:64px;line-height:1}
+#endTitle{font-size:36px;font-weight:700;margin-top:10px}
+#endStars{font-size:34px;letter-spacing:.12em;margin-top:6px;min-height:42px}
+#endMsg{margin-top:4px;font-size:17px;color:var(--dim);font-weight:500}
+.btnrow{display:flex;gap:12px;justify-content:center;margin-top:20px;flex-wrap:wrap}
+.btnrow .bigbtn{margin:0}
 
 @media (prefers-reduced-motion:reduce){
   .tile.rumble{animation:none;outline:4px solid var(--lava2)}
-  .tile.lava,.tile.await{animation:none}
+  .tile.lava,.tile.await,.lvldot.cur{animation:none}
 }
 </style>
 
@@ -144,37 +202,55 @@ body{
   <div id="hud">
     <div id="hudrow">
       <div id="hearts"></div>
-      <div id="lvlname">Level 1 · The Meadow</div>
-      <button id="btnReset" aria-label="Restart">↺</button>
+      <div id="lvlname"></div>
+      <button id="btnBack" aria-label="Back">‹</button>
     </div>
     <div id="timerwrap"><div id="timerbar"></div></div>
   </div>
-  <div id="boardwrap"><div id="board"></div></div>
+  <div id="boardwrap">
+    <div id="board"></div>
+    <div id="pawn"><div class="eye l"></div><div class="eye r"></div></div>
+  </div>
 </div>
 
 <div id="ring"></div>
 <canvas id="fx"></canvas>
 <div id="flash"></div>
 <div id="toast"></div>
+<div id="count"></div>
 
 <div id="overlay">
-  <div class="card" id="cardTitle">
+  <div class="screen" id="scrTitle">
     <h1 class="logo">FLOOR<em>· IS ·</em>LAVA</h1>
     <p class="tag">Don't touch the lava! 🌋</p>
-    <ul class="rules">
-      <li>👇 <b>Hold your finger</b> on the stones</li>
-      <li>⚠️ <b>Slide away</b> when a tile rumbles</li>
-      <li>⭐ <b>Reach the star</b> before time runs out</li>
-    </ul>
-    <button class="bigbtn" id="btnPlay">PLAY</button>
-    <p class="mini">PROTOTYPE · ONE LEVEL · ONE PLAYER</p>
+    <button class="bigbtn" id="btnAdventure">🗺️ ADVENTURE</button>
+    <button class="bigbtn alt" id="btnFree">🎮 FREE PLAY</button>
+    <p class="mini" id="titleMini">5 WORLDS · 30 LEVELS · 4 WAYS TO PLAY</p>
   </div>
-  <div class="card hidden" id="cardEnd">
-    <div id="endEmoji">🌋</div>
+
+  <div class="screen hidden" id="scrMap">
+    <h2>Adventure Map</h2>
+    <p class="sub">Clear a level to unlock the next!</p>
+    <div id="worlds"></div>
+    <button class="bigbtn ghost" id="btnMapHome" style="margin-top:18px">‹ Home</button>
+  </div>
+
+  <div class="screen hidden" id="scrFree">
+    <h2>Free Play</h2>
+    <p class="sub">Pick a game — how many stages can you survive?</p>
+    <div class="modes" id="modeCards"></div>
+    <button class="bigbtn ghost" id="btnFreeHome" style="margin-top:18px">‹ Home</button>
+  </div>
+
+  <div class="screen hidden" id="scrEnd">
+    <div id="endEmoji">🎉</div>
     <h2 id="endTitle"></h2>
     <div id="endStars"></div>
     <p id="endMsg"></p>
-    <button class="bigbtn" id="btnAgain">PLAY AGAIN</button>
+    <div class="btnrow">
+      <button class="bigbtn" id="btnNext">NEXT ›</button>
+      <button class="bigbtn ghost" id="btnEndMap">Map</button>
+    </div>
   </div>
 </div>
 
@@ -183,27 +259,63 @@ body{
     <path d="M12 21.2C6.2 16.9 2.8 13.2 2.8 9.4 2.8 6.7 4.9 4.6 7.6 4.6c1.8 0 3.4 1 4.4 2.5 1-1.5 2.6-2.5 4.4-2.5 2.7 0 4.8 2.1 4.8 4.8 0 3.8-3.4 7.5-9.2 11.8z"/>
   </symbol>
 </svg>
-
 <script>
 (() => {
 "use strict";
-// ---------- config ----------
-const HEARTS = 5, DUR = 60, HANG = 1.0, ERUPT_T = 1.5, COOL_T = 0.7, LAVA_FRAC = 0.14;
 const $ = id => document.getElementById(id);
-const board = $("board"), wrap = $("boardwrap"), ring = $("ring"), toastEl = $("toast");
-const overlay = $("overlay"), cardTitle = $("cardTitle"), cardEnd = $("cardEnd");
+const board = $("board"), wrap = $("boardwrap"), ring = $("ring"), pawn = $("pawn"),
+      toastEl = $("toast"), overlay = $("overlay"), countEl = $("count");
+const HEARTS = 5, HANG = 1.0, ERUPT_T = 1.5, COOL_T = 0.7;
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
-// ---------- state ----------
-const S = {
-  mode: "title",          // title | ready | playing | respawn | won | lost
-  hearts: HEARTS, t: 0,   // t = game clock (seconds), pauses outside "playing"
-  cols: 0, rows: 0, tile: 60, gap: 8,
-  tiles: [], start: 0, goal: 0, player: -1,
-  ptrId: null, air: false, airStart: 0, off: false, offStart: 0,
-  lastXY: [0, 0], nextErupt: 0, rect: null, toastTimer: 0
+// ---------------- save ----------------
+const SAVE_KEY = "fil_v1";
+let save = { stars: {}, unlocked: 1, freeBest: {} };
+try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.stars) save = s; } catch (_) {}
+function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (_) {} }
+
+// ---------------- worlds & levels ----------------
+const WORLDS = [
+  { name: "The Meadow",      icon: "🌿", mode: "slide", label: "Slide" },
+  { name: "Stepping Stones", icon: "🪨", mode: "steps", label: "Steps" },
+  { name: "The Dark Caves",  icon: "🌑", mode: "path",  label: "Memory" },
+  { name: "Lava River",      icon: "🌊", mode: "waves", label: "Waves" },
+  { name: "The Big Volcano", icon: "🌋", mode: "mix",   label: "Everything" },
+];
+const ANIMALS = ["🐢", "🐰", "🦊", "🐧", "🦖"];
+const MODES = {
+  slide: { icon: "🐾", name: "Slide", desc: "Keep your finger down, slide off rumbling tiles" },
+  steps: { icon: "👣", name: "Steps", desc: "Tap tile by tile like the arcade floor" },
+  path:  { icon: "🧠", name: "Memory Path", desc: "Watch the path light up, then walk it" },
+  waves: { icon: "🌊", name: "Lava Waves", desc: "Read the wave pattern, hop through the gaps" },
 };
+function sl(warn, int, lava, extras, pT, timer) { return { mode: "slide", warn, int, lava, extras, pT, timer }; }
+function st(warn, int, lava, extras, pT, timer) { return { mode: "steps", warn, int, lava, extras, pT, timer }; }
+function pa(len, memT, mercy, timer) { return { mode: "path", len, memT, mercy, timer }; }
+function wa(beat, every, gapW, cycle, timer) { return { mode: "waves", beat, every, gapW, cycle, timer }; }
+const LEVELS = [
+  sl(3.2, 3.6, .08, 1, .35, 60), sl(3.0, 3.2, .10, 1, .45, 60), sl(2.8, 3.0, .12, 1, .50, 55),
+  sl(2.6, 2.8, .13, 1, .50, 55), sl(2.4, 2.6, .14, 2, .55, 50), sl(2.3, 2.4, .15, 2, .55, 50),
+  st(3.0, 3.2, .10, 1, .50, 55), st(2.8, 3.0, .12, 1, .55, 55), st(2.6, 2.8, .13, 1, .55, 50),
+  st(2.4, 2.6, .14, 2, .60, 50), st(2.2, 2.4, .15, 2, .60, 45), st(2.0, 2.2, .16, 2, .65, 45),
+  pa(8, 4.5, true, 45),  pa(9, 4.0, true, 45),  pa(10, 3.5, true, 45),
+  pa(11, 3.0, false, 45), pa(12, 2.8, false, 40), pa(13, 2.5, false, 40),
+  wa(.95, 4, 2, [.5], 60), wa(.88, 4, 2, [.25, .75], 60), wa(.80, 3, 2, [.2, .8, .5], 55),
+  wa(.74, 3, 2, [.3, .7], 55), wa(.68, 3, 1, [.15, .5, .85], 50), wa(.62, 2, 1, [.7, .3, .5], 50),
+  sl(2.0, 2.0, .16, 2, .60, 45), st(1.9, 2.0, .16, 2, .65, 45), pa(14, 2.2, false, 40),
+  wa(.60, 2, 1, [.25, .75, .5], 45), st(1.7, 1.8, .17, 2, .70, 40),
+  wa(.55, 2, 1, [.2, .8, .5, .35, .65], 45),
+];
+function freeCfg(style, s) {
+  if (style === "slide") return sl(Math.max(1.6, 3.2 - .15 * s), Math.max(1.6, 3.5 - .15 * s), Math.min(.18, .07 + .012 * s), s > 4 ? 2 : 1, Math.min(.7, .33 + .04 * s), 45);
+  if (style === "steps") return st(Math.max(1.5, 3.1 - .15 * s), Math.max(1.6, 3.3 - .15 * s), Math.min(.18, .08 + .012 * s), s > 4 ? 2 : 1, Math.min(.72, .40 + .04 * s), 45);
+  if (style === "path")  return pa(6 + s, Math.max(1.8, 4.6 - .25 * s), s < 3, 40);
+  return wa(Math.max(.5, .98 - .04 * s), s < 3 ? 4 : s < 6 ? 3 : 2, s < 5 ? 2 : 1,
+    [[.5], [.25, .75], [.2, .8, .5], [.3, .7, .5, .2]][clamp(((s / 2) | 0), 0, 3)], 50);
+}
 
-// ---------- grid helpers ----------
+// ---------------- board core ----------------
+const S = { cols: 0, rows: 0, tile: 60, gap: 8, tiles: [], start: 0, goal: 0, rect: null };
 const isTablet = () => Math.min(innerWidth, innerHeight) >= 600;
 function gridDims() {
   const land = innerWidth > innerHeight;
@@ -219,30 +331,32 @@ function neighbors(i) {
   if (r < S.rows - 1) out.push(i + S.cols);
   return out;
 }
-
-// ---------- level build ----------
-function buildLevel() {
+const adjacent = (a, b) => {
+  const ac = a % S.cols, ar = (a / S.cols) | 0, bc = b % S.cols, br = (b / S.cols) | 0;
+  return Math.abs(ac - bc) + Math.abs(ar - br) === 1;
+};
+function buildBoard(opts) {
   [S.cols, S.rows] = gridDims();
   const n = S.cols * S.rows;
   S.start = idx((S.cols / 2) | 0, S.rows - 1);
   S.goal = idx((S.cols / 2) | 0, 0);
-  let lavaSet;
-  for (let tries = 0; tries < 60; tries++) {
-    lavaSet = new Set();
-    const want = Math.round(n * LAVA_FRAC);
-    while (lavaSet.size < want) {
-      const i = (Math.random() * n) | 0;
-      if (i !== S.start && i !== S.goal) lavaSet.add(i);
+  let lavaSet = new Set();
+  if (opts.lava) {
+    for (let tries = 0; tries < 60; tries++) {
+      lavaSet = new Set();
+      const want = Math.round(n * opts.lava);
+      while (lavaSet.size < want) {
+        const i = (Math.random() * n) | 0;
+        if (i !== S.start && i !== S.goal) lavaSet.add(i);
+      }
+      const seen = new Set([S.start]), q = [S.start];
+      while (q.length) {
+        const i = q.shift();
+        if (i === S.goal) break;
+        for (const j of neighbors(i)) if (!seen.has(j) && !lavaSet.has(j)) { seen.add(j); q.push(j); }
+      }
+      if (seen.has(S.goal)) break;
     }
-    // BFS path check
-    const seen = new Set([S.start]), q = [S.start];
-    while (q.length) {
-      const i = q.shift();
-      if (i === S.goal) break;
-      for (const j of neighbors(i))
-        if (!seen.has(j) && !lavaSet.has(j)) { seen.add(j); q.push(j); }
-    }
-    if (seen.has(S.goal)) break;
   }
   board.innerHTML = "";
   S.tiles = [];
@@ -250,28 +364,24 @@ function buildLevel() {
     const el = document.createElement("div");
     el.className = "tile";
     const isLava = lavaSet.has(i);
-    const st = isLava ? "lava" : "safe";
     if (isLava) el.classList.add("lava");
     if (i === S.start) { el.classList.add("start"); el.innerHTML = '<span class="icon"></span>'; }
-    if (i === S.goal) { el.classList.add("goal"); el.innerHTML = '<span class="icon"></span>'; }
+    if (i === S.goal) {
+      el.classList.add("goal"); el.innerHTML = '<span class="icon"></span>';
+      if (opts.animal) el.style.setProperty("--goalicon", `"${opts.animal}"`);
+    }
     board.appendChild(el);
-    S.tiles.push({ el, state: st, until: 0, fixed: isLava });
+    S.tiles.push({ el, state: isLava ? "lava" : "safe", until: 0, fixed: isLava });
   }
   layout();
 }
-
 function layout() {
   if (!S.tiles.length) return;
   S.gap = isTablet() ? 10 : 7;
   const aw = wrap.clientWidth - 8, ah = wrap.clientHeight - 8;
-  S.tile = Math.floor(Math.min(
-    (aw - (S.cols - 1) * S.gap) / S.cols,
-    (ah - (S.rows - 1) * S.gap) / S.rows));
-  const bw = S.cols * S.tile + (S.cols - 1) * S.gap;
-  const bh = S.rows * S.tile + (S.rows - 1) * S.gap;
-  board.style.width = bw + "px";
-  board.style.height = bh + "px";
-  board.style.setProperty("--ts", S.tile + "px");
+  S.tile = Math.floor(Math.min((aw - (S.cols - 1) * S.gap) / S.cols, (ah - (S.rows - 1) * S.gap) / S.rows));
+  board.style.width = (S.cols * S.tile + (S.cols - 1) * S.gap) + "px";
+  board.style.height = (S.rows * S.tile + (S.rows - 1) * S.gap) + "px";
   S.tiles.forEach((t, i) => {
     const c = i % S.cols, r = (i / S.cols) | 0;
     t.el.style.width = t.el.style.height = S.tile + "px";
@@ -280,154 +390,137 @@ function layout() {
     t.el.style.setProperty("--ts", S.tile + "px");
   });
   S.rect = board.getBoundingClientRect();
+  if (G.pTile >= 0 && G.usePawn) pawnTo(G.pTile, true);
 }
 addEventListener("resize", () => { layout(); sizeFx(); });
-
-// ---------- tile state machine ----------
-function setState(i, st, dur, warn) {
-  const t = S.tiles[i];
-  t.state = st;
-  t.until = dur ? S.t + dur : 0;
-  t.el.classList.remove("rumble", "erupt", "cool");
-  if (st === "rumble") {
-    t.el.style.setProperty("--warn", warn + "s");
-    t.el.classList.add("rumble");
-  } else if (st === "erupt") t.el.classList.add("erupt");
-  else if (st === "cool") t.el.classList.add("cool");
-}
-
-function updateTiles() {
-  S.tiles.forEach((t, i) => {
-    if (!t.until || S.t < t.until) return;
-    if (t.state === "rumble") {
-      setState(i, "erupt", ERUPT_T);
-      sndErupt();
-      if (S.player === i && !S.air && !S.off && S.mode === "playing") burn("🔥 Ouch! The tile erupted!");
-    } else if (t.state === "erupt") setState(i, "cool", COOL_T);
-    else if (t.state === "cool") setState(i, "safe", 0);
-  });
-}
-
-function scheduler() {
-  if (S.t < S.nextErupt) return;
-  const interval = Math.max(1.5, 2.6 - S.t * 0.018);
-  const warn = Math.max(1.7, 2.6 - S.t * 0.012);
-  S.nextErupt = S.t + interval;
-  const targets = [];
-  // maybe target the player's tile (only if an escape route exists)
-  const p = S.player;
-  if (p >= 0 && p !== S.start && p !== S.goal && S.tiles[p].state === "safe" && Math.random() < 0.55) {
-    if (neighbors(p).some(j => S.tiles[j].state === "safe" || j === S.goal)) targets.push(p);
-  }
-  const extras = isTablet() ? 2 : 1;
-  const pool = [];
-  S.tiles.forEach((t, i) => {
-    if (t.state === "safe" && i !== S.start && i !== S.goal && i !== p) pool.push(i);
-  });
-  for (let k = 0; k < extras && pool.length; k++)
-    targets.push(pool.splice((Math.random() * pool.length) | 0, 1)[0]);
-  if (targets.length) sndRumble();
-  targets.forEach(i => setState(i, "rumble", warn, warn));
-}
-
-// ---------- pointer → tile ----------
 function tileAt(x, y) {
   const r = S.rect;
   if (!r) return null;
   const M = 26;
   if (x < r.left - M || x > r.right + M || y < r.top - M || y > r.bottom + M) return null;
-  const cx = Math.min(Math.max(x - r.left, 0), r.width - 1);
-  const cy = Math.min(Math.max(y - r.top, 0), r.height - 1);
-  const c = Math.min(S.cols - 1, (cx / (S.tile + S.gap)) | 0);
-  const rr = Math.min(S.rows - 1, (cy / (S.tile + S.gap)) | 0);
-  return idx(c, rr);
+  const cx = clamp(x - r.left, 0, r.width - 1), cy = clamp(y - r.top, 0, r.height - 1);
+  return idx(Math.min(S.cols - 1, (cx / (S.tile + S.gap)) | 0), Math.min(S.rows - 1, (cy / (S.tile + S.gap)) | 0));
+}
+function setTile(i, st, dur, warn) {
+  const t = S.tiles[i];
+  t.state = st;
+  t.until = dur ? G.t + dur : 0;
+  t.el.classList.remove("rumble", "erupt", "cool");
+  if (st === "rumble") { t.el.style.setProperty("--warn", warn + "s"); t.el.classList.add("rumble"); }
+  else if (st === "erupt") t.el.classList.add("erupt");
+  else if (st === "cool") t.el.classList.add("cool");
 }
 const stateOf = i => S.tiles[i].state;
 const standable = i => i === S.goal || ["safe", "rumble", "cool"].includes(stateOf(i));
 
-// ---------- ring ----------
-function ringAt(x, y, cls) {
-  ring.className = cls;
-  ring.style.background = "";
-  ring.style.transform = `translate(${x}px,${y}px)`;
-}
-function ringHang(frac) {
-  ring.className = "hang";
-  const deg = Math.round(360 * (1 - frac));
-  ring.style.background = `conic-gradient(rgba(255,201,60,.95) ${deg}deg, rgba(255,201,60,.15) ${deg}deg)`;
-  ring.style.borderRadius = "50%";
-}
-function hideRing() { ring.className = ""; ring.style.background = ""; }
+// ---------------- game state ----------------
+const G = {
+  screen: "title", phase: "idle", cfg: null, ctrl: null, lvlIdx: 0, free: null,
+  hearts: HEARTS, burns: 0, t: 0, pTile: -1, usePawn: false,
+  ptrId: null, air: false, airStart: 0, off: false, offStart: 0, lastXY: [0, 0],
+  nextErupt: 0, invulnUntil: 0,
+};
 
-// ---------- game flow ----------
-function newGame() {
-  S.hearts = HEARTS; S.t = 0; S.nextErupt = 2.2;
-  S.air = S.off = false; S.ptrId = null; S.player = -1;
-  S.mode = "ready";
-  buildLevel();
-  updateHearts(); timerUI();
-  board.classList.remove("paused");
-  overlay.classList.add("hidden");
-  S.tiles[S.start].el.classList.add("await");
-  toast("Hold your finger on the green tile 👇", 3.5);
+// ---------------- pawn ----------------
+function pawnTo(i, instant) {
+  const c = i % S.cols, r = (i / S.cols) | 0, sz = S.tile * .72;
+  pawn.style.width = pawn.style.height = sz + "px";
+  if (instant) pawn.style.transition = "none";
+  pawn.style.left = (board.offsetLeft + c * (S.tile + S.gap) + (S.tile - sz) / 2) + "px";
+  pawn.style.top = (board.offsetTop + r * (S.tile + S.gap) + (S.tile - sz) / 2) + "px";
+  if (instant) requestAnimationFrame(() => pawn.style.transition = "");
+  else { pawn.classList.remove("hop"); void pawn.offsetWidth; pawn.classList.add("hop"); }
 }
-function beginPlay(i) {
-  S.tiles[S.start].el.classList.remove("await");
-  board.classList.remove("paused");
-  const first = S.mode === "ready";
-  S.mode = "playing";
-  S.player = i;
-  if (first) toast("Slide away when tiles rumble! ⚠️", 2.2);
+function showPawn(i) { G.usePawn = true; G.pTile = i; pawn.classList.add("show"); pawnTo(i, true); }
+function hidePawn() { G.usePawn = false; pawn.classList.remove("show"); }
+
+// ---------------- shared systems ----------------
+function updateTiles(onErupt) {
+  S.tiles.forEach((t, i) => {
+    if (!t.until || G.t < t.until || t.fixed) return;
+    if (t.state === "rumble") { setTile(i, "erupt", ERUPT_T); sndErupt(); if (onErupt) onErupt(i); }
+    else if (t.state === "erupt") setTile(i, "cool", COOL_T);
+    else if (t.state === "cool") setTile(i, "safe", 0);
+  });
+}
+function scheduler() {
+  const c = G.cfg;
+  if (G.t < G.nextErupt) return;
+  G.nextErupt = G.t + c.int;
+  const targets = [], p = G.pTile;
+  if (p >= 0 && p !== S.start && p !== S.goal && stateOf(p) === "safe" && Math.random() < c.pT) {
+    if (neighbors(p).some(j => stateOf(j) === "safe" || j === S.goal)) targets.push(p);
+  }
+  const pool = [];
+  S.tiles.forEach((t, i) => { if (t.state === "safe" && i !== S.start && i !== S.goal && i !== p) pool.push(i); });
+  for (let k = 0; k < c.extras && pool.length; k++)
+    targets.push(pool.splice((Math.random() * pool.length) | 0, 1)[0]);
+  if (targets.length) sndRumble();
+  targets.forEach(i => setTile(i, "rumble", c.warn, c.warn));
 }
 function burn(msg) {
-  S.hearts--; updateHearts(); sndBurn();
+  if (G.t < G.invulnUntil || G.phase !== "playing") return;
+  G.hearts--; G.burns++; updateHearts(); sndBurn();
   const f = $("flash");
   f.classList.add("go"); requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove("go")));
-  S.air = S.off = false; S.ptrId = null; S.player = -1; hideRing();
-  if (S.hearts <= 0) { lose("🌋", "The lava won this time!", "You were so brave — try again!"); return; }
-  S.mode = "respawn";
-  board.classList.add("paused");
-  S.tiles[S.start].el.classList.add("await");
-  toast(msg + " Back to the green tile!", 3);
+  if (G.hearts <= 0) { endLose("🌋", "The lava won this time!", "You were so brave — try again!"); return; }
+  toast(msg, 2.2);
+  G.ctrl.onBurn && G.ctrl.onBurn();
 }
-function win() {
-  S.mode = "won"; S.ptrId = null; hideRing(); sndWin(); confetti();
-  const stars = S.hearts >= HEARTS ? 3 : S.hearts >= 3 ? 2 : 1;
-  const secs = Math.round(S.t);
-  showEnd("🎉", "Level Clear!", "⭐".repeat(stars),
-    `You crossed the lava in ${secs} seconds with ${S.hearts} ${S.hearts === 1 ? "heart" : "hearts"} left!`);
+function winLevel() {
+  G.phase = "won"; G.ptrId = null; hideRing(); sndWin(); confetti();
+  const stars = G.burns === 0 ? 3 : G.burns === 1 ? 2 : 1;
+  if (G.free) {
+    G.free.stage++;
+    toast(`⭐ Stage ${G.free.stage - 1} clear!`, 1.4);
+    setTimeout(() => startFree(G.free.style, G.free.stage), 1400);
+    return;
+  }
+  const id = G.lvlIdx + 1;
+  save.stars[id] = Math.max(save.stars[id] || 0, stars);
+  if (id >= save.unlocked && id < 30) save.unlocked = id + 1;
+  persist();
+  G.hearts = Math.min(HEARTS, G.hearts + (stars === 3 ? 2 : 1)); updateHearts();
+  const rescue = (id % 6 === 0);
+  const w = ((id - 1) / 6) | 0;
+  showEnd(rescue ? ANIMALS[w] : "🎉",
+    id === 30 ? "You beat the volcano!" : rescue ? "Rescued!" : "Level Clear!",
+    "⭐".repeat(stars),
+    rescue && id !== 30 ? `You saved ${ANIMALS[w]} and finished ${WORLDS[w].name}!`
+      : id === 30 ? `Every animal is safe. What a hero! 🏆`
+      : `+${stars === 3 ? 2 : 1} ❤️ — ${Math.round(G.t)}s`,
+    id === 30 ? null : "NEXT ›");
 }
-function lose(emoji, title, msg) {
-  S.mode = "lost"; S.ptrId = null; hideRing(); sndLose();
-  showEnd(emoji, title, "", msg);
+function endLose(emoji, title, msg) {
+  G.phase = "lost"; G.ptrId = null; hideRing(); sndLose();
+  if (G.free) {
+    const sc = G.free.stage - 1, best = save.freeBest[G.free.style] || 0;
+    if (sc > best) { save.freeBest[G.free.style] = sc; persist(); }
+    showEnd("🔥", "Run over!", "", `You survived ${sc} ${sc === 1 ? "stage" : "stages"}${sc > best ? " — new best!" : ` · best ${Math.max(sc, best)}`}`, "PLAY AGAIN");
+    return;
+  }
+  showEnd(emoji, title, "", msg, "RETRY");
 }
-function showEnd(emoji, title, stars, msg) {
+function showEnd(emoji, title, stars, msg, nextLabel) {
   $("endEmoji").textContent = emoji;
   $("endTitle").textContent = title;
   $("endStars").textContent = stars;
   $("endStars").style.display = stars ? "" : "none";
   $("endMsg").textContent = msg;
-  cardTitle.classList.add("hidden");
-  cardEnd.classList.remove("hidden");
-  overlay.classList.remove("hidden");
+  $("btnNext").textContent = nextLabel || "";
+  $("btnNext").style.display = nextLabel ? "" : "none";
+  showScreen("scrEnd");
 }
-function toTitle() {
-  S.mode = "title"; S.ptrId = null; hideRing();
-  cardEnd.classList.add("hidden");
-  cardTitle.classList.remove("hidden");
-  overlay.classList.remove("hidden");
-}
-
-// ---------- HUD ----------
+function timeUp() { endLose("⏰", "Time's up!", "The floor got too hot — try again!"); }
 function updateHearts() {
   const h = $("hearts");
   if (!h.childElementCount)
     for (let i = 0; i < HEARTS; i++)
       h.insertAdjacentHTML("beforeend", '<svg class="heart" viewBox="0 0 24 24"><use href="#hh"/></svg>');
-  [...h.children].forEach((el, i) => el.classList.toggle("off", i >= S.hearts));
+  [...h.children].forEach((el, i) => el.classList.toggle("off", i >= G.hearts));
 }
 function timerUI() {
-  const frac = Math.max(0, 1 - S.t / DUR);
+  const frac = Math.max(0, 1 - G.t / G.cfg.timer);
   const bar = $("timerbar");
   bar.style.width = frac * 100 + "%";
   bar.style.background = `hsl(${Math.round(frac * 112)},78%,52%)`;
@@ -440,59 +533,373 @@ function toast(msg, secs) {
   clearTimeout(toastT);
   toastT = setTimeout(() => toastEl.classList.remove("show"), secs * 1000);
 }
+let countT = [];
+function countdown(done) {
+  countT.forEach(clearTimeout); countT = [];
+  ["3", "2", "1", "GO!"].forEach((txt, k) => {
+    countT.push(setTimeout(() => {
+      countEl.textContent = txt;
+      countEl.classList.remove("show"); void countEl.offsetWidth; countEl.classList.add("show");
+      beep(txt === "GO!" ? 740 : 420, .12, "triangle", .15);
+      if (txt === "GO!") countT.push(setTimeout(done, 350));
+    }, k * 750));
+  });
+}
+function ringAt(x, y, cls) { ring.className = cls; ring.style.background = ""; ring.style.transform = `translate(${x}px,${y}px)`; }
+function ringHang(frac) {
+  ring.className = "hang";
+  const deg = Math.round(360 * (1 - frac));
+  ring.style.background = `conic-gradient(rgba(255,201,60,.95) ${deg}deg, rgba(255,201,60,.15) ${deg}deg)`;
+  ring.style.borderRadius = "50%";
+}
+function hideRing() { ring.className = ""; ring.style.background = ""; }
+function tapStep(i, isSafe, isDeadly, deadlyMsg) {
+  if (i === null || i === G.pTile || G.phase !== "playing") return;
+  if (!adjacent(G.pTile, i)) { if (G.t > G.invulnUntil) toast("One step at a time! 👣", 1.2); return; }
+  if (isDeadly(i)) { burn(deadlyMsg); return; }
+  if (!isSafe(i)) return;
+  G.pTile = i; pawnTo(i); sndHop();
+  if (i === S.goal) winLevel();
+}
 
-// ---------- pointer handlers ----------
+// ---------------- controllers ----------------
+const CTRL = {};
+
+CTRL.slide = {
+  start() {
+    buildBoard({ lava: G.cfg.lava, animal: G.animal });
+    hidePawn();
+    G.phase = "ready"; G.nextErupt = 2.2;
+    S.tiles[S.start].el.classList.add("await");
+    toast("Hold your finger on the green tile 👇", 3.2);
+  },
+  down(e, i) {
+    if (G.phase === "ready" || G.phase === "respawn") {
+      if (i === S.start) {
+        S.tiles[S.start].el.classList.remove("await");
+        board.classList.remove("paused");
+        const first = G.phase === "ready";
+        G.phase = "playing"; G.ptrId = e.pointerId; G.pTile = i;
+        ringAt(e.clientX, e.clientY, "on"); sndLand();
+        if (first) toast("Slide away when tiles rumble! ⚠️", 2);
+      } else toast("Start on the green tile! 👇", 1.5);
+      return;
+    }
+    if (G.phase === "playing" && G.air) {
+      G.ptrId = e.pointerId;
+      if (i === null) return;
+      if (standable(i)) { G.air = false; G.off = false; ringAt(...G.lastXY, "on"); sndLand(); if (i === S.goal) { winLevel(); return; } G.pTile = i; }
+      else burn("🔥 You landed in lava!");
+    }
+  },
+  move(e, i) {
+    if (e.pointerId !== G.ptrId || G.phase !== "playing" || G.air) return;
+    ringAt(e.clientX, e.clientY, "on");
+    if (i === null) { if (!G.off) { G.off = true; G.offStart = G.t; } return; }
+    if (G.off) {
+      if (standable(i)) { G.off = false; G.pTile = i; sndLand(); if (i === S.goal) winLevel(); }
+      else burn("🔥 That was lava!");
+      return;
+    }
+    if (i !== G.pTile) {
+      if (i === S.goal) { G.pTile = i; winLevel(); return; }
+      if (standable(i)) { G.pTile = i; sndStep(); }
+      else burn("🔥 That was lava!");
+    }
+  },
+  up(e) {
+    if (e.pointerId !== G.ptrId) return;
+    G.ptrId = null;
+    if (G.phase === "playing") { G.air = true; G.off = false; G.airStart = G.t; }
+    else hideRing();
+  },
+  tick() {
+    updateTiles(i => { if (G.pTile === i && !G.air && !G.off && G.phase === "playing") burn("🔥 Ouch! The tile erupted!"); });
+    if (G.phase !== "playing") return;
+    scheduler();
+    if (G.air) {
+      const f = (G.t - G.airStart) / HANG;
+      if (f >= 1) burn("💨 You fell in!");
+      else { ringHang(f); ring.style.transform = `translate(${G.lastXY[0]}px,${G.lastXY[1]}px)`; }
+    } else if (G.off && G.t - G.offStart > HANG) burn("💨 You slid off the floor!");
+    else if (G.pTile >= 0 && !standable(G.pTile)) burn("🔥 Ouch, lava!");
+  },
+  onBurn() {
+    G.phase = "respawn"; G.ptrId = null; G.air = G.off = false; G.pTile = -1; hideRing();
+    board.classList.add("paused");
+    S.tiles[S.start].el.classList.add("await");
+    toast("Back to the green tile! 👇", 2.6);
+  },
+};
+
+CTRL.steps = {
+  start() {
+    buildBoard({ lava: G.cfg.lava, animal: G.animal });
+    showPawn(S.start);
+    G.phase = "watch"; G.nextErupt = 1.5;
+    countdown(() => { G.phase = "playing"; G.invulnUntil = G.t + .5; });
+  },
+  down(e, i) {
+    tapStep(i, j => standable(j), j => ["lava", "erupt"].includes(stateOf(j)), "🔥 You stepped in lava!");
+  },
+  move() {}, up() {},
+  tick() {
+    if (G.phase !== "playing") return;
+    updateTiles(i => { if (G.pTile === i) burn("🔥 The tile erupted!"); });
+    scheduler();
+    if (G.pTile >= 0 && stateOf(G.pTile) === "erupt") burn("🔥 Ouch, lava!");
+  },
+  onBurn() {
+    pawn.classList.remove("hurt"); void pawn.offsetWidth; pawn.classList.add("hurt");
+    G.pTile = S.start; pawnTo(S.start, true); G.invulnUntil = G.t + 1.2;
+  },
+};
+
+CTRL.path = {
+  start() {
+    buildBoard({ animal: G.animal });
+    showPawn(S.start);
+    this.makePath();
+    G.phase = "watch";
+    toast("Watch the path! 👀", 2);
+    this.reveal(G.cfg.memT, () => countdown(() => { G.phase = "playing"; }));
+  },
+  makePath() {
+    // random wiggly walk start -> goal
+    let best = null;
+    for (let tries = 0; tries < 120; tries++) {
+      const seen = new Set([S.start]), path = [S.start];
+      let cur = S.start, ok = false;
+      for (let steps = 0; steps < S.cols * S.rows * 2; steps++) {
+        const c = cur % S.cols, r = (cur / S.cols) | 0;
+        const opts = [];
+        for (const j of neighbors(cur)) {
+          if (seen.has(j)) continue;
+          const jr = (j / S.cols) | 0;
+          // bias upward, allow sideways, rarely down
+          const w = jr < r ? 3 : jr === r ? 2 : 0.4;
+          opts.push([j, w]);
+        }
+        if (!opts.length) break;
+        const tot = opts.reduce((a, o) => a + o[1], 0);
+        let pick = Math.random() * tot;
+        let j = opts[0][0];
+        for (const [cand, w] of opts) { pick -= w; if (pick <= 0) { j = cand; break; } }
+        seen.add(j); path.push(j); cur = j;
+        if (j === S.goal) { ok = true; break; }
+      }
+      if (ok) {
+        if (!best || Math.abs(path.length - G.cfg.len) < Math.abs(best.length - G.cfg.len)) best = path;
+        if (Math.abs(path.length - G.cfg.len) <= 1) break;
+      }
+    }
+    this.path = best || [S.start, S.goal];
+    this.set = new Set(this.path);
+  },
+  reveal(holdSecs, done) {
+    this.path.forEach((i, k) => {
+      countT.push(setTimeout(() => { S.tiles[i].el.classList.add("plit"); if (k % 2 === 0) beep(500 + k * 22, .06, "triangle", .06); }, k * 90));
+    });
+    const total = this.path.length * 90 + holdSecs * 1000;
+    countT.push(setTimeout(() => {
+      this.path.forEach(i => S.tiles[i].el.classList.remove("plit"));
+      done && done();
+    }, total));
+  },
+  down(e, i) {
+    tapStep(i, j => this.set.has(j), j => !this.set.has(j), "🔥 Splash! Not that one!");
+  },
+  move() {}, up() {},
+  tick() {},
+  onBurn() {
+    pawn.classList.remove("hurt"); void pawn.offsetWidth; pawn.classList.add("hurt");
+    G.pTile = S.start; pawnTo(S.start, true); G.invulnUntil = G.t + (G.cfg.mercy ? 1.6 : 1.0);
+    if (G.cfg.mercy) {
+      this.path.forEach(i => S.tiles[i].el.classList.add("plit"));
+      countT.push(setTimeout(() => this.path.forEach(i => S.tiles[i].el.classList.remove("plit")), 1200));
+    }
+  },
+  cleanup() { this.path && this.path.forEach(i => S.tiles[i] && S.tiles[i].el.classList.remove("plit")); },
+};
+
+CTRL.waves = {
+  start() {
+    buildBoard({ animal: G.animal });
+    showPawn(S.start);
+    this.waves = []; this.beatAcc = 0; this.beatCount = 0; this.cycleIdx = 0; this.counting = false;
+    G.phase = "watch";
+    toast("Read the waves! 🌊 Hop through the gaps", 2.6);
+    this.watchLeft = 3.2;
+  },
+  gapCols(frac) {
+    const center = clamp(Math.round(frac * (S.cols - 1)), 0, S.cols - 1);
+    const cols = [center];
+    for (let k = 1; k < G.cfg.gapW; k++) cols.push(clamp(center + k, 0, S.cols - 1));
+    return cols;
+  },
+  beat() {
+    this.beatCount++;
+    for (const w of this.waves) w.row++;
+    this.waves = this.waves.filter(w => w.row <= S.rows - 2);
+    if (this.beatCount % G.cfg.every === 0) {
+      const frac = G.cfg.cycle[this.cycleIdx % G.cfg.cycle.length];
+      this.cycleIdx++;
+      this.waves.push({ row: 1, gaps: this.gapCols(frac) });
+    }
+    this.render();
+    if (G.phase === "playing" && this.isLava(G.pTile)) burn("🔥 The wave got you!");
+  },
+  isLava(i) {
+    const c = i % S.cols, r = (i / S.cols) | 0;
+    return this.waves.some(w => w.row === r && !w.gaps.includes(c));
+  },
+  render() {
+    S.tiles.forEach((t, i) => {
+      const c = i % S.cols, r = (i / S.cols) | 0;
+      let lava = false, warn = false;
+      for (const w of this.waves) {
+        if (w.row === r && !w.gaps.includes(c)) lava = true;
+        if (w.row + 1 === r && r <= S.rows - 2 && !w.gaps.includes(c)) warn = true;
+      }
+      if (i === S.start || i === S.goal) { lava = false; warn = false; }
+      t.el.classList.toggle("lava", lava || t.fixed);
+      t.el.classList.toggle("wwarn", warn && !lava);
+      t.state = lava ? "lava" : "safe";
+    });
+  },
+  down(e, i) {
+    tapStep(i, j => !this.isLava(j), j => this.isLava(j), "🔥 You hopped into the wave!");
+  },
+  move() {}, up() {},
+  tick(dt) {
+    this.beatAcc += dt;
+    if (this.beatAcc >= G.cfg.beat) { this.beatAcc -= G.cfg.beat; this.beat(); }
+  },
+  watchTick(dt) {
+    this.tick(dt);
+    this.watchLeft -= dt;
+    if (this.watchLeft <= 0 && !this.counting) {
+      this.counting = true;
+      countdown(() => { G.phase = "playing"; G.invulnUntil = G.t + .5; this.counting = false; });
+    }
+  },
+  onBurn() {
+    pawn.classList.remove("hurt"); void pawn.offsetWidth; pawn.classList.add("hurt");
+    G.pTile = S.start; pawnTo(S.start, true); G.invulnUntil = G.t + 1.2;
+  },
+  cleanup() { S.tiles.forEach(t => t.el.classList.remove("wwarn")); },
+};
+
+// ---------------- flow ----------------
+function resetRun() {
+  countT.forEach(clearTimeout); countT = [];
+  G.ctrl && G.ctrl.cleanup && G.ctrl.cleanup();
+  G.t = 0; G.burns = 0; G.pTile = -1; G.ptrId = null;
+  G.air = G.off = false; G.nextErupt = 0; G.invulnUntil = 0;
+  board.classList.remove("paused"); hideRing(); hidePawn();
+  countEl.classList.remove("show");
+}
+function startLevel(i) {
+  resetRun();
+  G.lvlIdx = i; G.free = null;
+  G.cfg = LEVELS[i];
+  const id = i + 1, w = (i / 6) | 0;
+  G.animal = id % 6 === 0 ? ANIMALS[w] : null;
+  $("lvlname").textContent = `${WORLDS[w].icon} ${WORLDS[w].name} · Level ${id}`;
+  launch();
+}
+function startFree(style, stage) {
+  resetRun();
+  G.free = { style, stage };
+  if (stage === 1) G.hearts = HEARTS;
+  G.cfg = freeCfg(style, stage);
+  G.animal = null;
+  $("lvlname").textContent = `${MODES[style].icon} ${MODES[style].name} · Stage ${stage}`;
+  launch();
+}
+function launch() {
+  G.screen = "game";
+  overlay.classList.add("hidden");
+  updateHearts(); layout();
+  G.ctrl = CTRL[G.cfg.mode];
+  G.ctrl.start();
+  timerUI();
+}
+function retryCurrent() { G.hearts = HEARTS; if (G.free) startFree(G.free.style, 1); else startLevel(G.lvlIdx); }
+
+// ---------------- screens ----------------
+function showScreen(id) {
+  G.screen = id;
+  overlay.classList.remove("hidden");
+  ["scrTitle", "scrMap", "scrFree", "scrEnd"].forEach(s => $(s).classList.toggle("hidden", s !== id));
+  if (id === "scrMap") renderMap();
+  if (id === "scrFree") renderFree();
+}
+function renderMap() {
+  const holder = $("worlds");
+  holder.innerHTML = "";
+  WORLDS.forEach((w, wi) => {
+    const first = wi * 6 + 1;
+    const locked = first > save.unlocked;
+    const sec = document.createElement("div");
+    sec.className = "worldsec" + (locked ? " locked" : "");
+    let dots = "";
+    for (let k = 0; k < 6; k++) {
+      const id = first + k;
+      const stars = save.stars[id] || 0;
+      const cls = id < save.unlocked || stars ? "done" : id === save.unlocked ? "cur" : "lock";
+      const animal = id % 6 === 0 ? `<span class="animal">${ANIMALS[wi]}</span>` : "";
+      dots += `<div class="lvldot ${cls}" data-lvl="${id}">${cls === "lock" ? "🔒" : id}${animal}
+        <span class="st">${stars ? "★".repeat(stars) : cls === "lock" ? "" : "&nbsp;"}</span></div>`;
+    }
+    sec.innerHTML = `<div class="whead"><span class="wicon">${w.icon}</span>
+      <span class="wname">${w.name}</span><span class="wmode">${w.label}</span></div>
+      <div class="lvls">${dots}</div>`;
+    holder.appendChild(sec);
+  });
+  holder.querySelectorAll(".lvldot.done,.lvldot.cur").forEach(el =>
+    el.addEventListener("click", () => { sndHop(); startLevel(+el.dataset.lvl - 1); }));
+}
+function renderFree() {
+  const holder = $("modeCards");
+  holder.innerHTML = "";
+  Object.entries(MODES).forEach(([key, m]) => {
+    const best = save.freeBest[key] || 0;
+    const card = document.createElement("div");
+    card.className = "modecard";
+    card.innerHTML = `<div class="mi">${m.icon}</div><div class="mn">${m.name}</div>
+      <div class="md">${m.desc}</div><div class="mb">${best ? "Best: " + best + " stages" : "Not played yet"}</div>`;
+    card.addEventListener("click", () => { sndHop(); G.hearts = HEARTS; startFree(key, 1); });
+    holder.appendChild(card);
+  });
+}
+$("btnAdventure").addEventListener("click", () => { ensureAudio(); G.hearts = HEARTS; updateHearts(); showScreen("scrMap"); });
+$("btnFree").addEventListener("click", () => { ensureAudio(); showScreen("scrFree"); });
+$("btnMapHome").addEventListener("click", () => showScreen("scrTitle"));
+$("btnFreeHome").addEventListener("click", () => showScreen("scrTitle"));
+$("btnBack").addEventListener("click", () => { resetRun(); G.phase = "idle"; showScreen(G.free ? "scrFree" : "scrMap"); });
+$("btnNext").addEventListener("click", () => {
+  ensureAudio();
+  if (G.phase === "lost") { retryCurrent(); return; }
+  if (G.free) { startFree(G.free.style, 1); return; }
+  if (G.lvlIdx < 29) startLevel(G.lvlIdx + 1); else showScreen("scrMap");
+});
+$("btnEndMap").addEventListener("click", () => { resetRun(); G.phase = "idle"; showScreen(G.free ? "scrFree" : "scrMap"); });
+
+// ---------------- input ----------------
 function onDown(e) {
   ensureAudio();
-  if (S.mode === "title" || S.mode === "won" || S.mode === "lost") return;
-  if (S.ptrId !== null && e.pointerId !== S.ptrId) { toast("One finger for one player! ☝️", 1.6); return; }
-  const i = tileAt(e.clientX, e.clientY);
-  S.lastXY = [e.clientX, e.clientY];
-  if (S.mode === "ready" || S.mode === "respawn") {
-    if (i === S.start) { S.ptrId = e.pointerId; beginPlay(i); ringAt(e.clientX, e.clientY, "on"); sndLand(); }
-    else toast("Start on the green tile! 👇", 1.6);
-    return;
-  }
-  if (S.mode === "playing" && S.air) {
-    S.ptrId = e.pointerId;
-    if (i === null) return;                       // hovering off the floor — timer keeps running
-    if (i === S.goal) { land(i); return; }
-    if (standable(i)) land(i);
-    else burn("🔥 You landed in lava!");
-  }
-}
-function land(i) {
-  S.air = false; S.off = false;
-  ringAt(...S.lastXY, "on"); sndLand();
-  if (i === S.goal) { win(); return; }
-  S.player = i;
+  if (G.screen !== "game" || !G.ctrl) return;
+  G.lastXY = [e.clientX, e.clientY];
+  if (G.ctrl === CTRL.slide && G.ptrId !== null && e.pointerId !== G.ptrId) { toast("One finger for one player! ☝️", 1.5); return; }
+  G.ctrl.down(e, tileAt(e.clientX, e.clientY));
 }
 function onMove(e) {
-  if (e.pointerId !== S.ptrId || S.mode !== "playing" || S.air) return;
-  S.lastXY = [e.clientX, e.clientY];
-  ringAt(e.clientX, e.clientY, "on");
-  const i = tileAt(e.clientX, e.clientY);
-  if (i === null) {                                // slid off the board edge
-    if (!S.off) { S.off = true; S.offStart = S.t; }
-    return;
-  }
-  if (S.off) {                                     // came back over the board
-    if (standable(i)) { S.off = false; S.player = i; sndLand(); if (i === S.goal) win(); }
-    else burn("🔥 That was lava!");
-    return;
-  }
-  if (i !== S.player) {
-    if (i === S.goal) { S.player = i; win(); return; }
-    if (standable(i)) { S.player = i; sndStep(); }
-    else burn("🔥 That was lava!");
-  }
+  if (G.screen !== "game" || !G.ctrl) return;
+  if (G.ctrl === CTRL.slide && e.pointerId === G.ptrId) G.lastXY = [e.clientX, e.clientY];
+  G.ctrl.move(e, tileAt(e.clientX, e.clientY));
 }
-function onUp(e) {
-  if (e.pointerId !== S.ptrId) return;
-  S.ptrId = null;
-  if (S.mode === "playing") { S.air = true; S.off = false; S.airStart = S.t; }
-  else hideRing();
-}
+function onUp(e) { if (G.screen === "game" && G.ctrl) G.ctrl.up(e); }
 wrap.addEventListener("pointerdown", onDown);
 addEventListener("pointermove", onMove);
 addEventListener("pointerup", onUp);
@@ -501,33 +908,25 @@ document.addEventListener("touchmove", e => e.preventDefault(), { passive: false
 document.addEventListener("gesturestart", e => e.preventDefault());
 document.addEventListener("dblclick", e => e.preventDefault());
 
-$("btnPlay").addEventListener("click", () => { ensureAudio(); newGame(); });
-$("btnAgain").addEventListener("click", () => { ensureAudio(); newGame(); });
-$("btnReset").addEventListener("click", toTitle);
-
-// ---------- main loop ----------
+// ---------------- main loop ----------------
 let last = performance.now();
 function frame(ts) {
   const dt = Math.min(0.05, (ts - last) / 1000); last = ts;
-  if (S.mode === "playing") {
-    S.t += dt;
-    updateTiles();
-    if (S.mode === "playing") {        // updateTiles may have burned/ended the run
-      scheduler(); timerUI();
-      if (S.t >= DUR) lose("⏰", "Time's up!", "The floor got too hot — try again!");
-      else if (S.air) {
-        const f = (S.t - S.airStart) / HANG;
-        if (f >= 1) burn("💨 You fell in!");
-        else { ringHang(f); ring.style.transform = `translate(${S.lastXY[0]}px,${S.lastXY[1]}px)`; }
-      } else if (S.off && S.t - S.offStart > HANG) burn("💨 You slid off the floor!");
-      else if (S.player >= 0 && !standable(S.player)) burn("🔥 Ouch, lava!");
-    }
+  if (G.screen === "game" && G.ctrl) {
+    if (G.phase === "playing") {
+      G.t += dt;
+      G.ctrl.tick(dt);
+      if (G.phase === "playing") {
+        timerUI();
+        if (G.t >= G.cfg.timer) timeUp();
+      }
+    } else if (G.phase === "watch" && G.ctrl.watchTick) G.ctrl.watchTick(dt);
   }
   drawFX(dt);
   requestAnimationFrame(frame);
 }
 
-// ---------- particles (embers + confetti) ----------
+// ---------------- particles ----------------
 const fx = $("fx"), ctx = fx.getContext("2d");
 let embers = [], confs = [];
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -556,8 +955,7 @@ function drawFX(dt) {
   for (const e of embers) {
     e.y -= e.vy * dt; e.x += e.dr * dt;
     if (e.y < -12) Object.assign(e, newEmber());
-    ctx.globalAlpha = e.a;
-    ctx.fillStyle = "#ff8a3c";
+    ctx.globalAlpha = e.a; ctx.fillStyle = "#ff8a3c";
     ctx.beginPath(); ctx.arc(e.x, e.y, e.s, 0, 6.3); ctx.fill();
   }
   ctx.globalAlpha = 1;
@@ -572,7 +970,7 @@ function drawFX(dt) {
   ctx.globalAlpha = 1;
 }
 
-// ---------- audio ----------
+// ---------------- audio ----------------
 let AC = null;
 function ensureAudio() {
   try {
@@ -603,6 +1001,7 @@ function noiseBurst(dur, vol) {
   } catch (_) {}
 }
 const sndStep = () => beep(540 + Math.random() * 80, .05, "triangle", .07);
+const sndHop = () => { beep(430, .07, "triangle", .12, 620); };
 const sndLand = () => beep(170, .09, "sine", .18, 110);
 const sndRumble = () => beep(72, .4, "sawtooth", .1, 52);
 const sndErupt = () => { noiseBurst(.22, .22); beep(230, .3, "sawtooth", .16, 60); };
@@ -610,9 +1009,11 @@ const sndBurn = () => { beep(330, .45, "sawtooth", .22, 70); noiseBurst(.3, .18)
 function sndWin() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, .28, "triangle", .2), i * 110)); }
 function sndLose() { [330, 262, 196].forEach((f, i) => setTimeout(() => beep(f, .32, "triangle", .16), i * 160)); }
 
-// ---------- boot ----------
+// ---------------- boot ----------------
 updateHearts();
-buildLevel();               // so the board shows behind the title screen
+buildBoard({ lava: .12 });
+$("lvlname").textContent = "5 worlds · 30 levels";
+showScreen("scrTitle");
 requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
 })();
 </script>
