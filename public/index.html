@@ -8,6 +8,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Floor is Lava">
 <meta name="theme-color" content="#160f13">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
 <title>Floor is Lava</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap">
 </head>
@@ -185,6 +188,14 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 .modecard .md{font-size:12px;color:var(--dim);font-weight:500;margin-top:3px;min-height:2.4em}
 .modecard .mb{font-size:12px;color:var(--gold);font-weight:600;margin-top:6px}
 
+/* chips (options) */
+.chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.chiplbl{font-size:12px;color:#8d7a76;letter-spacing:.08em;text-transform:uppercase;font-weight:600;margin-top:14px}
+.chip{background:var(--panel);border-radius:99px;padding:9px 18px;font-weight:600;font-size:14px;color:var(--dim);
+  box-shadow:inset 0 -3px 0 rgba(0,0,0,.3)}
+.chip.on{background:linear-gradient(180deg,#9df2a6,var(--green) 60%,#37a052);color:#0b3317;box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
+.chip:active{transform:scale(.94)}
+
 #endEmoji{font-size:64px;line-height:1}
 #endTitle{font-size:36px;font-weight:700;margin-top:10px}
 #endStars{font-size:34px;letter-spacing:.12em;margin-top:6px;min-height:42px}
@@ -225,6 +236,10 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
     <p class="tag">Don't touch the lava! 🌋</p>
     <button class="bigbtn" id="btnAdventure">🗺️ ADVENTURE</button>
     <button class="bigbtn alt" id="btnFree">🎮 FREE PLAY</button>
+    <div class="chips">
+      <button class="chip" id="chSound">🔊 Sound</button>
+      <button class="chip" id="chVoice">🗣️ Voice</button>
+    </div>
     <p class="mini" id="titleMini">5 WORLDS · 30 LEVELS · 4 WAYS TO PLAY</p>
   </div>
 
@@ -238,7 +253,16 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
   <div class="screen hidden" id="scrFree">
     <h2>Free Play</h2>
     <p class="sub">Pick a game — how many stages can you survive?</p>
-    <div class="modes" id="modeCards"></div>
+    <div class="chiplbl">Difficulty</div>
+    <div class="chips" id="diffChips">
+      <button class="chip" data-d="easy">🌱 Easy</button>
+      <button class="chip" data-d="normal">🔥 Normal</button>
+      <button class="chip" data-d="hard">🌋 Hard</button>
+    </div>
+    <div class="chips">
+      <button class="chip" id="chTimer">⏱️ Timer</button>
+    </div>
+    <div class="modes" id="modeCards" style="margin-top:16px"></div>
     <button class="bigbtn ghost" id="btnFreeHome" style="margin-top:18px">‹ Home</button>
   </div>
 
@@ -272,7 +296,33 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const SAVE_KEY = "fil_v1";
 let save = { stars: {}, unlocked: 1, freeBest: {} };
 try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.stars) save = s; } catch (_) {}
+if (save.sound === undefined) save.sound = true;
+if (save.voice === undefined) save.voice = true;
+if (save.freeDiff === undefined) save.freeDiff = "easy";
+if (save.freeTimer === undefined) save.freeTimer = true;
 function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (_) {} }
+
+// ---------------- voice ----------------
+let VOICE = null;
+function pickVoice() {
+  try {
+    const vs = speechSynthesis.getVoices();
+    if (!vs.length) return;
+    VOICE = vs.find(v => /^en/i.test(v.lang) && /Samantha|Karen|Google US English/i.test(v.name))
+         || vs.find(v => /^en/i.test(v.lang)) || vs[0];
+  } catch (_) {}
+}
+try { pickVoice(); speechSynthesis.addEventListener("voiceschanged", pickVoice); } catch (_) {}
+function say(text, rate) {
+  if (!save.voice || !("speechSynthesis" in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    if (VOICE) u.voice = VOICE;
+    u.rate = rate || 1.05; u.pitch = 1.12;
+    speechSynthesis.speak(u);
+  } catch (_) {}
+}
 
 // ---------------- worlds & levels ----------------
 const WORLDS = [
@@ -283,6 +333,7 @@ const WORLDS = [
   { name: "The Big Volcano", icon: "🌋", mode: "mix",   label: "Everything" },
 ];
 const ANIMALS = ["🐢", "🐰", "🦊", "🐧", "🦖"];
+const ANIMAL_NAMES = ["turtle", "bunny", "fox", "penguin", "dino"];
 const MODES = {
   slide: { icon: "🐾", name: "Slide", desc: "Keep your finger down, slide off rumbling tiles" },
   steps: { icon: "👣", name: "Steps", desc: "Tap tile by tile like the arcade floor" },
@@ -463,7 +514,8 @@ function burn(msg) {
   G.hearts--; G.burns++; updateHearts(); sndBurn();
   const f = $("flash");
   f.classList.add("go"); requestAnimationFrame(() => requestAnimationFrame(() => f.classList.remove("go")));
-  if (G.hearts <= 0) { endLose("🌋", "The lava won this time!", "You were so brave — try again!"); return; }
+  if (G.hearts <= 0) { say("Oh no! Try again!"); endLose("🌋", "The lava won this time!", "You were so brave — try again!"); return; }
+  say("Ouch!", 1.2);
   toast(msg, 2.2);
   G.ctrl.onBurn && G.ctrl.onBurn();
 }
@@ -483,6 +535,7 @@ function winLevel() {
   G.hearts = Math.min(HEARTS, G.hearts + (stars === 3 ? 2 : 1)); updateHearts();
   const rescue = (id % 6 === 0);
   const w = ((id - 1) / 6) | 0;
+  say(id === 30 ? "You beat the volcano! Amazing!" : rescue ? `You saved the ${ANIMAL_NAMES[w]}!` : "Level clear!");
   showEnd(rescue ? ANIMALS[w] : "🎉",
     id === 30 ? "You beat the volcano!" : rescue ? "Rescued!" : "Level Clear!",
     "⭐".repeat(stars),
@@ -511,7 +564,7 @@ function showEnd(emoji, title, stars, msg, nextLabel) {
   $("btnNext").style.display = nextLabel ? "" : "none";
   showScreen("scrEnd");
 }
-function timeUp() { endLose("⏰", "Time's up!", "The floor got too hot — try again!"); }
+function timeUp() { say("Time's up!"); endLose("⏰", "Time's up!", "The floor got too hot — try again!"); }
 function updateHearts() {
   const h = $("hearts");
   if (!h.childElementCount)
@@ -536,11 +589,13 @@ function toast(msg, secs) {
 let countT = [];
 function countdown(done) {
   countT.forEach(clearTimeout); countT = [];
-  ["3", "2", "1", "GO!"].forEach((txt, k) => {
+  ["Ready?", "3", "2", "1", "GO!"].forEach((txt, k) => {
     countT.push(setTimeout(() => {
       countEl.textContent = txt;
+      countEl.style.fontSize = txt.length > 3 ? "58px" : "110px";
       countEl.classList.remove("show"); void countEl.offsetWidth; countEl.classList.add("show");
-      beep(txt === "GO!" ? 740 : 420, .12, "triangle", .15);
+      say(txt === "GO!" ? "Go!" : txt, 1.1);
+      beep(txt === "GO!" ? 740 : txt === "Ready?" ? 330 : 420, .12, "triangle", .15);
       if (txt === "GO!") countT.push(setTimeout(done, 350));
     }, k * 750));
   });
@@ -795,7 +850,7 @@ function resetRun() {
   countT.forEach(clearTimeout); countT = [];
   G.ctrl && G.ctrl.cleanup && G.ctrl.cleanup();
   G.t = 0; G.burns = 0; G.pTile = -1; G.ptrId = null;
-  G.air = G.off = false; G.nextErupt = 0; G.invulnUntil = 0;
+  G.air = G.off = false; G.nextErupt = 0; G.invulnUntil = 0; G.lastSaid = 0;
   board.classList.remove("paused"); hideRing(); hidePawn();
   countEl.classList.remove("show");
 }
@@ -812,7 +867,9 @@ function startFree(style, stage) {
   resetRun();
   G.free = { style, stage };
   if (stage === 1) G.hearts = HEARTS;
-  G.cfg = freeCfg(style, stage);
+  const boost = { easy: 0, normal: 3, hard: 7 }[save.freeDiff] || 0;
+  G.cfg = freeCfg(style, stage + boost);
+  if (!save.freeTimer) G.cfg = Object.assign({}, G.cfg, { timer: 9999 });
   G.animal = null;
   $("lvlname").textContent = `${MODES[style].icon} ${MODES[style].name} · Stage ${stage}`;
   launch();
@@ -820,6 +877,7 @@ function startFree(style, stage) {
 function launch() {
   G.screen = "game";
   overlay.classList.add("hidden");
+  $("timerwrap").style.visibility = G.cfg.timer > 999 ? "hidden" : "visible";
   updateHearts(); layout();
   G.ctrl = CTRL[G.cfg.mode];
   G.ctrl.start();
@@ -834,6 +892,7 @@ function showScreen(id) {
   ["scrTitle", "scrMap", "scrFree", "scrEnd"].forEach(s => $(s).classList.toggle("hidden", s !== id));
   if (id === "scrMap") renderMap();
   if (id === "scrFree") renderFree();
+  if (id === "scrTitle" || id === "scrFree") syncChips();
 }
 function renderMap() {
   const holder = $("worlds");
@@ -873,6 +932,19 @@ function renderFree() {
     holder.appendChild(card);
   });
 }
+function syncChips() {
+  $("chSound").classList.toggle("on", !!save.sound);
+  $("chVoice").classList.toggle("on", !!save.voice);
+  const tc = $("chTimer");
+  if (tc) { tc.classList.toggle("on", !!save.freeTimer); tc.textContent = save.freeTimer ? "⏱️ Timer on" : "⏱️ No timer"; }
+  document.querySelectorAll("#diffChips .chip").forEach(el =>
+    el.classList.toggle("on", el.dataset.d === save.freeDiff));
+}
+$("chSound").addEventListener("click", () => { ensureAudio(); save.sound = !save.sound; persist(); syncChips(); if (save.sound) beep(520, .1, "triangle", .15); });
+$("chVoice").addEventListener("click", () => { ensureAudio(); save.voice = !save.voice; persist(); syncChips(); if (save.voice) say("Voice on!"); });
+$("chTimer").addEventListener("click", () => { save.freeTimer = !save.freeTimer; persist(); syncChips(); });
+document.querySelectorAll("#diffChips .chip").forEach(el =>
+  el.addEventListener("click", () => { save.freeDiff = el.dataset.d; persist(); syncChips(); sndHop(); }));
 $("btnAdventure").addEventListener("click", () => { ensureAudio(); G.hearts = HEARTS; updateHearts(); showScreen("scrMap"); });
 $("btnFree").addEventListener("click", () => { ensureAudio(); showScreen("scrFree"); });
 $("btnMapHome").addEventListener("click", () => showScreen("scrTitle"));
@@ -918,6 +990,14 @@ function frame(ts) {
       G.ctrl.tick(dt);
       if (G.phase === "playing") {
         timerUI();
+        if (G.cfg.timer < 999) {
+          const left = Math.ceil(G.cfg.timer - G.t);
+          if (left <= 5 && left >= 1 && left !== G.lastSaid) {
+            G.lastSaid = left;
+            say(String(left), 1.15);
+            beep(620, .08, "triangle", .12);
+          }
+        }
         if (G.t >= G.cfg.timer) timeUp();
       }
     } else if (G.phase === "watch" && G.ctrl.watchTick) G.ctrl.watchTick(dt);
@@ -979,7 +1059,7 @@ function ensureAudio() {
   } catch (_) {}
 }
 function beep(f0, dur, type, vol, f1) {
-  if (!AC) return;
+  if (!AC || !save.sound) return;
   try {
     const o = AC.createOscillator(), g = AC.createGain(), t = AC.currentTime;
     o.type = type; o.frequency.setValueAtTime(f0, t);
@@ -991,7 +1071,7 @@ function beep(f0, dur, type, vol, f1) {
   } catch (_) {}
 }
 function noiseBurst(dur, vol) {
-  if (!AC) return;
+  if (!AC || !save.sound) return;
   try {
     const n = AC.sampleRate * dur | 0, buf = AC.createBuffer(1, n, AC.sampleRate), d = buf.getChannelData(0);
     for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
